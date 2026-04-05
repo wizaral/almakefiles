@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.zed/
+.vscode/
+.idea/
+
+# Swap / backup files
+*.swp
+*.swo
+*~
+
+# Environment files
+.env*
+!.env*.example
