@@ -393,6 +393,27 @@ test_env_make_bootstrap_excludes_disabled_module_files() {
 	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_GIT_CLEAN_EXCLUDES_CSV = \$(ALMAKE_ENV_FILE)"
 }
 
+test_env_sync_env_make_respects_module_disable_from_env_make() {
+	local fixture_dir
+
+	eval "$(setup_fixture fixture_dir)"
+
+	bootstrap_env_make "$fixture_dir"
+
+	cat >"$fixture_dir/almakefiles/.env.mk" <<'EOF'
+ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE = 1
+# user-owned note
+EOF
+
+	run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 env.sync-env.mk >/dev/null 2>&1
+
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE = 1"
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "# user-owned note"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_UID ="
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_ENV_COMPOSE_FILES_CSV = .env"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
+}
+
 test_env_make_bootstrap_does_not_scan_non_module_dropin_makefiles() {
 	local fixture_dir
 
@@ -643,6 +664,7 @@ run_env_make_suite() {
 	test_env_make_scan_exclude_dirs_csv_filters_matching_directories
 	test_env_make_scan_exclude_globs_csv_filters_matching_paths
 	test_env_make_bootstrap_excludes_disabled_module_files
+	test_env_sync_env_make_respects_module_disable_from_env_make
 	test_env_make_bootstrap_does_not_scan_non_module_dropin_makefiles
 	test_auto_discovered_module_defaults_follow_module_enablement
 	test_dry_run_debug_targets_print_recipes_without_executing_scripts

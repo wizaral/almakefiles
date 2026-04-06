@@ -127,7 +127,7 @@ override __ALMAKE_MK_CONTENT := $(wildcard $(ALMAKE_DIRECTORY_PATH)/mk/*.mk) $(w
 override __ALMAKE_HIDDEN_MODULE_FILES := $(strip $(ALMAKE_DIRECTORY_PATH)/mk/.mk $(ALMAKE_DIRECTORY_PATH)/mk/.makefile $(wildcard $(ALMAKE_DIRECTORY_PATH)/mk/.*.mk) $(wildcard $(ALMAKE_DIRECTORY_PATH)/mk/.*.makefile))
 override __ALMAKE_MODULE_FILES := $(sort $(filter-out $(__ALMAKE_HIDDEN_MODULE_FILES) $(ALMAKE_DIRECTORY_PATH)/mk/common.mk,$(__ALMAKE_MK_CONTENT)))
 
-override __ALMAKE_SCAN_EXCLUDE_MAKEFILES_CSV := $(call almake-join-comma,$(call almake-disabled-module-files,$(__ALMAKE_MODULE_FILES)))
+override __ALMAKE_SCAN_EXCLUDE_MAKEFILES_CSV = $(call almake-join-comma,$(call almake-disabled-module-files,$(__ALMAKE_MODULE_FILES)))
 override __ALMAKE_HELP_FILE_LIST_CSV = $(call almake-join-comma,$(MAKEFILE_LIST))
 
 ifneq ($(__ALMAKE_ENV_MAKE_RULE_ENABLED),)
