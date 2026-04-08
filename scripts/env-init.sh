@@ -36,7 +36,7 @@ load_warn_only_examples() {
 		if [[ -n "$normalized" ]]; then
 			append_unique warn_only_examples "$normalized"
 		fi
-	done < <(split_csv "${ALMAKE_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV:-}")
+	done < <(split_csv "${ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV:-}")
 }
 
 read_first_line() {

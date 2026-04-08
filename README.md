@@ -28,7 +28,7 @@ include ../shared/dev-layer/include.mk
 ## Path Contract
 
 - The first include is always a literal path to `include.mk`.
-- After load, `ALMAKE_DIRECTORY_PATH` is computed automatically from the actual loaded path.
+- After load, `ALMKFS_DIRECTORY_PATH` is computed automatically from the actual loaded path.
 - Re-including the same canonical `include.mk` path is harmless.
 - Loading a different canonical `include.mk` path in the same run is a hard error.
 - The published value is canonical:
@@ -38,12 +38,12 @@ include ../shared/dev-layer/include.mk
 
 ## Local Config Contract
 
-- `ALMAKE_ENV_FILE` is the public override for the generated Make-local config file.
+- `ALMKFS_ENV_FILE` is the public override for the generated Make-local config file.
 - `.env.mk` is a validated Make-local config file, not a generic Make fragment.
 - Default placement depends on the drop-in location:
-  - inside the project: `$(ALMAKE_DIRECTORY_PATH)/.env.mk`
+  - inside the project: `$(ALMKFS_DIRECTORY_PATH)/.env.mk`
   - outside the project: `.env.mk` in the consumer project root
-- `ALMAKE_ENV_FILE` is excluded from normal `.env*` discovery and from `?=` autogeneration feedback loops.
+- `ALMKFS_ENV_FILE` is excluded from normal `.env*` discovery and from `?=` autogeneration feedback loops.
 - Allowed `.env.mk` lines:
   - blank lines
   - `# ...` comments
@@ -52,34 +52,34 @@ include ../shared/dev-layer/include.mk
   - `NAME ::= value`
   - `NAME += value`
 - Allowed `.env.mk` variable names:
-  - public `ALMAKE_*`
+  - public `ALMKFS_*`
   - consumer project variables
 - Forbidden `.env.mk` content:
   - GNU Make system variables
-  - `__ALMAKE_*`
+  - `__ALMKFS_*`
   - any other directives, conditionals, includes, rules, or targets
 
 ## Public Surface
 
 Configurable defaults:
 
-- `ALMAKE_ENV_FILE`
-- `ALMAKE_GLOBAL_MAKEFLAGS`
-- `ALMAKE_NO_AUTO_ENV_INIT`
-- `ALMAKE_SCAN_INCLUDE_DIRS_CSV`
-- `ALMAKE_SCAN_EXCLUDE_DIRS_CSV`
-- `ALMAKE_SCAN_INCLUDE_GLOBS_CSV`
-- `ALMAKE_SCAN_EXCLUDE_GLOBS_CSV`
-- `ALMAKE_DISABLE_MODULE_<MODULE_NAME>`
+- `ALMKFS_ENV_FILE`
+- `ALMKFS_GLOBAL_MAKEFLAGS`
+- `ALMKFS_NO_AUTO_ENV_INIT`
+- `ALMKFS_SCAN_INCLUDE_DIRS_CSV`
+- `ALMKFS_SCAN_EXCLUDE_DIRS_CSV`
+- `ALMKFS_SCAN_INCLUDE_GLOBS_CSV`
+- `ALMKFS_SCAN_EXCLUDE_GLOBS_CSV`
+- `ALMKFS_DISABLE_MODULE_<MODULE_NAME>`
 
 Computed public values:
 
-- `ALMAKE_DIRECTORY_PATH`
-- `ALMAKE_MAKE_BIN`
+- `ALMKFS_DIRECTORY_PATH`
+- `ALMKFS_MAKE_BIN`
 
 Module switches:
 
-- `ALMAKE_DISABLE_MODULE_<MODULE_NAME> = 1`
+- `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`
 
 Public targets:
 
@@ -97,10 +97,10 @@ Public targets:
 - `help` shows only targets from active modules and active generated target families.
 - `.env.mk` is generated from discovered non-duplicate `?=` defaults found in:
   - root `makefile` / `Makefile` / `GNUmakefile` / `*.mk` / `*.makefile`
-  - `$(ALMAKE_DIRECTORY_PATH)/include.mk`
-  - `$(ALMAKE_DIRECTORY_PATH)/mk/*.mk`
-  - `$(ALMAKE_DIRECTORY_PATH)/mk/*.makefile`
-- `.env.mk` generation excludes `ALMAKE_ENV_FILE`, GNU Make system variables, and `__ALMAKE_*`.
+  - `$(ALMKFS_DIRECTORY_PATH)/include.mk`
+  - `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
+  - `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
+- `.env.mk` generation excludes `ALMKFS_ENV_FILE`, GNU Make system variables, and `__ALMKFS_*`.
 - Existing `.env.mk` files are validated before they are included on every invocation.
 - Hidden module files are ignored:
   - `mk/.mk`
@@ -114,11 +114,11 @@ Public targets:
 
 ## Naming Rules
 
-- Public project-owned Make variables use the `ALMAKE_` prefix.
-- Private project-owned Make variables use the `__ALMAKE_` prefix.
-- `ALMAKE_* ?=` means a supported configurable default.
-- `override ALMAKE_*` means a public computed value.
-- `override __ALMAKE_*` means private internal state.
+- Public project-owned Make variables use the `ALMKFS_` prefix.
+- Private project-owned Make variables use the `__ALMKFS_` prefix.
+- `ALMKFS_* ?=` means a supported configurable default.
+- `override ALMKFS_*` means a public computed value.
+- `override __ALMKFS_*` means private internal state.
 - Consumer project variables remain unprefixed unless the project chooses otherwise.
 
 ## Documentation Map

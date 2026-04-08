@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-if [[ -n "${ALMAKE_SCRIPT_COMMON_SH_LOADED:-}" ]]; then
+if [[ -n "${ALMKFS_SCRIPT_COMMON_SH_LOADED:-}" ]]; then
 	return 0
 fi
-ALMAKE_SCRIPT_COMMON_SH_LOADED=1
+ALMKFS_SCRIPT_COMMON_SH_LOADED=1
 
 # Shared helpers used by multiple internal shell scripts.
 

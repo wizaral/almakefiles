@@ -14,7 +14,7 @@ That rule prevents a split-brain configuration where the user-provided variable 
 
 ## Canonical Directory Path
 
-`mk/common.mk` computes `ALMAKE_DIRECTORY_PATH` from the actual loaded `mk/common.mk` file.
+`mk/common.mk` computes `ALMKFS_DIRECTORY_PATH` from the actual loaded `mk/common.mk` file.
 
 The published value is canonical:
 
@@ -37,18 +37,18 @@ The module fails early if the loaded tree is incomplete.
 
 ## Local Make Config Placement
 
-`ALMAKE_ENV_FILE` is the public override for the generated Make-local config file.
+`ALMKFS_ENV_FILE` is the public override for the generated Make-local config file.
 
 Default placement:
 
-- inside-project drop-in: `$(ALMAKE_DIRECTORY_PATH)/.env.mk`
+- inside-project drop-in: `$(ALMKFS_DIRECTORY_PATH)/.env.mk`
 - outside-project drop-in: `.env.mk` in the consumer project root
 
 This keeps shared external drop-ins from also becoming shared local state.
 
 ## `.env.mk` Contract
 
-`ALMAKE_ENV_FILE` is a validated Make-local config file.
+`ALMKFS_ENV_FILE` is a validated Make-local config file.
 
 Allowed lines:
 
@@ -61,13 +61,13 @@ Allowed lines:
 
 Allowed variable names:
 
-- public `ALMAKE_*`
+- public `ALMKFS_*`
 - consumer project variables
 
 Forbidden content:
 
 - GNU Make system variables
-- `__ALMAKE_*`
+- `__ALMKFS_*`
 - `?=` and `!=`
 - directives such as `override`, `export`, `private`, `undefine`
 - blocks and conditionals such as `define`, `endef`, `ifeq`, `ifneq`, `ifdef`, `ifndef`, `else`, `endif`
@@ -80,7 +80,7 @@ Invalid `.env.mk` content fails the invocation before the file is included.
 
 Normal top-level runs follow two phases:
 
-1. `mk/common.mk` ensures `ALMAKE_ENV_FILE` exists, validates it when present, and includes it early.
+1. `mk/common.mk` ensures `ALMKFS_ENV_FILE` exists, validates it when present, and includes it early.
 2. `mk/env.mk` optionally initializes regular `.env*` files from matching `.env*.example` files.
 
 Declared env targets require matching `.env*.example` files.
@@ -91,8 +91,8 @@ Recursive and query-style runs must not create files.
 
 Optional modules are discovered automatically from:
 
-- `$(ALMAKE_DIRECTORY_PATH)/mk/*.mk`
-- `$(ALMAKE_DIRECTORY_PATH)/mk/*.makefile`
+- `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
+- `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
 
 Ignored files:
 
@@ -102,7 +102,7 @@ Ignored files:
 - `mk/.*.makefile`
 - `mk/common.mk`
 
-Module disabling uses `ALMAKE_DISABLE_MODULE_<MODULE_NAME> = 1`.
+Module disabling uses `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
 
 ## `.env.mk` Default Scanning
 
@@ -113,17 +113,17 @@ Module disabling uses `ALMAKE_DISABLE_MODULE_<MODULE_NAME> = 1`.
 - consumer root `GNUmakefile`
 - consumer root `*.mk`
 - consumer root `*.makefile`
-- `$(ALMAKE_DIRECTORY_PATH)/include.mk`
-- `$(ALMAKE_DIRECTORY_PATH)/mk/*.mk`
-- `$(ALMAKE_DIRECTORY_PATH)/mk/*.makefile`
+- `$(ALMKFS_DIRECTORY_PATH)/include.mk`
+- `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
+- `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
 
 It excludes:
 
 - hidden Makefiles
 - disabled module files
-- the public `ALMAKE_ENV_FILE` assignment itself
+- the public `ALMKFS_ENV_FILE` assignment itself
 - GNU Make system variables
-- `__ALMAKE_*`
+- `__ALMKFS_*`
 
 Duplicate `?=` defaults are reported and skipped.
 
@@ -143,10 +143,10 @@ This keeps `help` aligned with module disabling and generated target families.
 
 ## Naming Policy
 
-- Public project-owned Make variables use `ALMAKE_`.
-- Private project-owned Make variables use `__ALMAKE_`.
-- `ALMAKE_* ?=` declares a supported configurable default.
-- `override ALMAKE_*` declares a computed public value.
-- `override __ALMAKE_*` declares private internal state.
-- `ALMAKE_DISABLE_MODULE_<MODULE_NAME>` is public and disables a module only on exact `1`.
+- Public project-owned Make variables use `ALMKFS_`.
+- Private project-owned Make variables use `__ALMKFS_`.
+- `ALMKFS_* ?=` declares a supported configurable default.
+- `override ALMKFS_*` declares a computed public value.
+- `override __ALMKFS_*` declares private internal state.
+- `ALMKFS_DISABLE_MODULE_<MODULE_NAME>` is public and disables a module only on exact `1`.
 - Consumer project variables are not renamed or wrapped by almakefiles.

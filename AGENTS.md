@@ -8,19 +8,19 @@ The goal is stable mechanics, not backward compatibility.
 ## Core Invariants
 
 - The consumer project uses one literal include line: `include path/to/include.mk`.
-- `ALMAKE_DIRECTORY_PATH` is computed from the actual loaded `mk/common.mk` path.
+- `ALMKFS_DIRECTORY_PATH` is computed from the actual loaded `mk/common.mk` path.
 - Canonical path form:
   - relative to the consumer project root when the drop-in is inside the project
   - absolute when the drop-in is outside the project
 - Re-loading the same canonical `include.mk` path is allowed.
 - Loading a different canonical `include.mk` path in the same run must fail immediately.
-- `ALMAKE_ENV_FILE` is the only public override for the generated Make-local config file.
-- Default `ALMAKE_ENV_FILE` placement:
+- `ALMKFS_ENV_FILE` is the only public override for the generated Make-local config file.
+- Default `ALMKFS_ENV_FILE` placement:
   - inside-project drop-in: next to `include.mk`
   - outside-project drop-in: consumer project root `.env.mk`
 - `.env.mk` is a validated config file, not a generic Make fragment.
 - `.env.mk` may contain only blank lines, `#` comments, and assignment operators `=`, `:=`, `::=`, `+=`.
-- `.env.mk` must not contain GNU Make system variables, `__ALMAKE_*`, directives, conditionals, includes, rules, or targets.
+- `.env.mk` must not contain GNU Make system variables, `__ALMKFS_*`, directives, conditionals, includes, rules, or targets.
 - Query-style invocations must not create or rewrite `.env.mk` or regular `.env*` files.
 - `help` must list only active targets from active modules.
 - Disabled modules must disappear consistently from:
@@ -30,15 +30,15 @@ The goal is stable mechanics, not backward compatibility.
 
 ## Naming Rules
 
-- Public project-owned Make variables must use the `ALMAKE_` prefix.
-- Private project-owned Make variables must use the `__ALMAKE_` prefix.
-- Internal Make `define` helpers must use `almake-...` kebab-case names.
-- `ALMAKE_* ?=` is the only supported configurable-default form.
-- `override ALMAKE_*` is reserved for computed public values.
-- `override __ALMAKE_*` is reserved for private internal values.
+- Public project-owned Make variables must use the `ALMKFS_` prefix.
+- Private project-owned Make variables must use the `__ALMKFS_` prefix.
+- Internal Make `define` helpers must use `almkfs-...` kebab-case names.
+- `ALMKFS_* ?=` is the only supported configurable-default form.
+- `override ALMKFS_*` is reserved for computed public values.
+- `override __ALMKFS_*` is reserved for private internal values.
 - `+=` on system-owned variables must be spelled `override +=`.
 - Internal helper state in shell scripts should stay local shell variables unless it must cross a process boundary.
-- Module disable switches use `ALMAKE_DISABLE_MODULE_<MODULE_NAME> = 1`.
+- Module disable switches use `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
 
 ## Source Of Truth
 
@@ -61,9 +61,9 @@ The goal is stable mechanics, not backward compatibility.
 
 ### `mk/common.mk`
 
-- Computes canonical `ALMAKE_DIRECTORY_PATH`.
+- Computes canonical `ALMKFS_DIRECTORY_PATH`.
 - Validates the expected drop-in layout.
-- Sets the default `ALMAKE_ENV_FILE`.
+- Sets the default `ALMKFS_ENV_FILE`.
 - Discovers optional modules from `mk/*.mk` and `mk/*.makefile`.
 - Owns early `.env.mk` bootstrap, validation, and early include.
 - Owns shared Make helpers used by multiple modules.
@@ -73,7 +73,7 @@ The goal is stable mechanics, not backward compatibility.
 
 - Owns regular `.env*` initialization behavior.
 - Defines env-related public targets and debug targets.
-- Excludes `ALMAKE_ENV_FILE` from generic env file handling.
+- Excludes `ALMKFS_ENV_FILE` from generic env file handling.
 
 ### `mk/docker-compose.mk`
 
@@ -89,8 +89,8 @@ The goal is stable mechanics, not backward compatibility.
 - Scans the allowed Makefile set for `?=` defaults.
 - Skips duplicate defaults.
 - Rejects invalid `.env.mk` content.
-- Excludes GNU Make system variables and `__ALMAKE_*` from generated `.env.mk` defaults.
-- Builds, syncs, and rebuilds `ALMAKE_ENV_FILE`.
+- Excludes GNU Make system variables and `__ALMKFS_*` from generated `.env.mk` defaults.
+- Builds, syncs, and rebuilds `ALMKFS_ENV_FILE`.
 - Prints debug reports from the active Make database.
 
 ### `scripts/env-init.sh`

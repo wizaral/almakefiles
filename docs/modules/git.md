@@ -2,9 +2,9 @@
 
 ## Public Variables
 
-- `ALMAKE_GIT_CLEAN_EXCLUDES_CSV`
+- `ALMKFS_GIT_CLEAN_EXCLUDES_CSV`
   - CSV list of paths excluded from `git clean`
-- `ALMAKE_GIT_CLEAN_FLAGS`
+- `ALMKFS_GIT_CLEAN_FLAGS`
   - flags passed to `git clean`
 
 ## Public Targets
@@ -16,6 +16,6 @@
 
 ## Behavior
 
-- Defaults `ALMAKE_GIT_CLEAN_EXCLUDES_CSV` to `$(ALMAKE_ENV_FILE)`.
+- Defaults `ALMKFS_GIT_CLEAN_EXCLUDES_CSV` to `$(ALMKFS_ENV_FILE)`.
 - Uses `git clean -fdx` for destructive cleanup and `git clean -fdxn` for preview mode.
 - Preserves excluded local files across cleanup runs.

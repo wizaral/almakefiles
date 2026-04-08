@@ -6,7 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib/common.sh"
 
 project_root="$(pwd -P)"
-make_bin="${ALMAKE_MAKE_BIN:-make}"
+make_bin="${ALMKFS_MAKE_BIN:-make}"
 
 normalize_directory_path() {
 	local path="$1"
@@ -25,9 +25,9 @@ default_env_make_file_from_directory_path() {
 }
 
 almakefiles_directory_path="$(
-	normalize_directory_path "${ALMAKE_DIRECTORY_PATH:-$(dirname "$script_dir")}"
+	normalize_directory_path "${ALMKFS_DIRECTORY_PATH:-$(dirname "$script_dir")}"
 )"
-env_make_file="${ALMAKE_ENV_FILE:-$(default_env_make_file_from_directory_path "$almakefiles_directory_path")}"
+env_make_file="${ALMKFS_ENV_FILE:-$(default_env_make_file_from_directory_path "$almakefiles_directory_path")}"
 
 declare -a scan_files=()
 declare -a question_default_vars=()
@@ -55,7 +55,7 @@ is_gnu_make_system_var() {
 is_env_make_public_var_allowed() {
 	local var_name="$1"
 
-	if [[ "$var_name" == __ALMAKE_* ]]; then
+	if [[ "$var_name" == __ALMKFS_* ]]; then
 		return 1
 	fi
 
@@ -100,8 +100,8 @@ validate_env_make_file() {
 		if [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*(=|:=|::=|\+=)[[:space:]]*(.*)$ ]]; then
 			var_name="${BASH_REMATCH[1]}"
 
-			if [[ "$var_name" == __ALMAKE_* ]]; then
-				report_invalid_env_make_line "$path" "$line_number" "__ALMAKE_* variables are not allowed in .env.mk"
+			if [[ "$var_name" == __ALMKFS_* ]]; then
+				report_invalid_env_make_line "$path" "$line_number" "__ALMKFS_* variables are not allowed in .env.mk"
 				return 1
 			fi
 
@@ -188,7 +188,7 @@ build_command_line_override_args() {
 		fi
 
 		command_line_override_args+=("${var_name}=${!var_name-}")
-	done < <(printf '%s\n' "${__ALMAKE_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
+	done < <(printf '%s\n' "${__ALMKFS_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
 }
 
 is_hidden_make_scan_file() {
@@ -306,12 +306,12 @@ collect_scan_files() {
 
 	collect_makefile_candidates_from_root include_scan_files
 	collect_dropin_makefile_candidates include_scan_files
-	collect_makefile_candidates_from_csv_dirs include_scan_files "${ALMAKE_SCAN_INCLUDE_DIRS_CSV:-}"
-	collect_makefile_candidates_from_csv_globs include_scan_files "${ALMAKE_SCAN_INCLUDE_GLOBS_CSV:-}"
+	collect_makefile_candidates_from_csv_dirs include_scan_files "${ALMKFS_SCAN_INCLUDE_DIRS_CSV:-}"
+	collect_makefile_candidates_from_csv_globs include_scan_files "${ALMKFS_SCAN_INCLUDE_GLOBS_CSV:-}"
 
-	collect_makefile_candidates_from_csv_dirs exclude_scan_files "${ALMAKE_SCAN_EXCLUDE_DIRS_CSV:-}"
-	collect_makefile_candidates_from_csv_globs exclude_scan_files "${ALMAKE_SCAN_EXCLUDE_GLOBS_CSV:-}"
-	collect_makefile_candidates_from_csv_files exclude_scan_files "${__ALMAKE_SCAN_EXCLUDE_MAKEFILES_CSV:-}"
+	collect_makefile_candidates_from_csv_dirs exclude_scan_files "${ALMKFS_SCAN_EXCLUDE_DIRS_CSV:-}"
+	collect_makefile_candidates_from_csv_globs exclude_scan_files "${ALMKFS_SCAN_EXCLUDE_GLOBS_CSV:-}"
+	collect_makefile_candidates_from_csv_files exclude_scan_files "${__ALMKFS_SCAN_EXCLUDE_MAKEFILES_CSV:-}"
 
 	for path in "${exclude_scan_files[@]}"; do
 		exclude_scan_file_set["$path"]=1
@@ -369,7 +369,7 @@ scan_assignments() {
 				fi
 
 					if [[ "$operator" == '?=' ]]; then
-						if [[ "$var_name" == "ALMAKE_ENV_FILE" ]]; then
+						if [[ "$var_name" == "ALMKFS_ENV_FILE" ]]; then
 							continue
 						fi
 

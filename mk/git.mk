@@ -1,20 +1,20 @@
-ifeq ($(ALMAKE_DISABLE_MODULE_GIT),1)
-else ifndef __ALMAKE_INCLUDE_GUARD_GIT
-override __ALMAKE_INCLUDE_GUARD_GIT = 1
-ALMAKE_DISABLE_MODULE_GIT ?=
+ifeq ($(ALMKFS_DISABLE_MODULE_GIT),1)
+else ifndef __ALMKFS_INCLUDE_GUARD_GIT
+override __ALMKFS_INCLUDE_GUARD_GIT = 1
+ALMKFS_DISABLE_MODULE_GIT ?=
 
-$(eval $(call almake-target-require,git,))
+$(eval $(call almkfs-target-require,git,))
 
 ###
 
-ALMAKE_GIT_CLEAN_EXCLUDES_CSV ?= $(ALMAKE_ENV_FILE)
-ALMAKE_GIT_CLEAN_FLAGS ?= -f -d -x
-override __ALMAKE_GIT_CLEAN_EXCLUDES_ARGS := $(call almake-split-comma,$(ALMAKE_GIT_CLEAN_EXCLUDES_CSV),-e ,)
+ALMKFS_GIT_CLEAN_EXCLUDES_CSV ?= $(ALMKFS_ENV_FILE)
+ALMKFS_GIT_CLEAN_FLAGS ?= -f -d -x
+override __ALMKFS_GIT_CLEAN_EXCLUDES_ARGS := $(call almkfs-split-comma,$(ALMKFS_GIT_CLEAN_EXCLUDES_CSV),-e ,)
 
 git.clean: common.ensure-git ## Remove all untracked files/directories except excluded local files
-	git clean $(ALMAKE_GIT_CLEAN_FLAGS) $(__ALMAKE_GIT_CLEAN_EXCLUDES_ARGS)
+	git clean $(ALMKFS_GIT_CLEAN_FLAGS) $(__ALMKFS_GIT_CLEAN_EXCLUDES_ARGS)
 
 git.dry-clean: common.ensure-git ## Preview files/directories that would be removed by clean
-	git clean $(ALMAKE_GIT_CLEAN_FLAGS) -n $(__ALMAKE_GIT_CLEAN_EXCLUDES_ARGS)
+	git clean $(ALMKFS_GIT_CLEAN_FLAGS) -n $(__ALMKFS_GIT_CLEAN_EXCLUDES_ARGS)
 
 endif

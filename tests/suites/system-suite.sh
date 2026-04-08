@@ -16,7 +16,7 @@ test_almakefiles_recipes_do_not_use_raw_make() {
 	)"
 
 	if [[ -n "$output" ]]; then
-		printf "Raw \$(MAKE) is forbidden in module recipes. Use \$(ALMAKE_MAKE_BIN) instead.\n" >&2
+		printf "Raw \$(MAKE) is forbidden in module recipes. Use \$(ALMKFS_MAKE_BIN) instead.\n" >&2
 		printf 'Offending lines:\n%s\n' "$output" >&2
 		exit 1
 	fi
@@ -33,7 +33,7 @@ test_almakefiles_make_defines_use_kebab_case() {
 			FNR == 1 { file = FILENAME }
 			/^(override[[:space:]]+)?define[[:space:]]+/ {
 				name = $NF
-				if (name !~ /^almake(-[a-z0-9]+)+$/) {
+				if (name !~ /^almkfs(-[a-z0-9]+)+$/) {
 					printf "%s:%d:%s\n", file, FNR, name
 				}
 			}
@@ -41,7 +41,7 @@ test_almakefiles_make_defines_use_kebab_case() {
 	)"
 
 	if [[ -n "$output" ]]; then
-		printf "Make define helpers must use almake-prefixed kebab-case names.\n" >&2
+		printf "Make define helpers must use almkfs-prefixed kebab-case names.\n" >&2
 		printf 'Offending defines:\n%s\n' "$output" >&2
 		exit 1
 	fi
@@ -90,10 +90,10 @@ test_git_clean_preserves_custom_env_make_file() {
 		git commit -qm init
 	)
 
-	run_make "$fixture_dir" ALMAKE_ENV_FILE=.env.custom help >/dev/null 2>&1
+	run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.custom help >/dev/null 2>&1
 	assert_file_exists "$fixture_dir/.env.custom"
 
-	output="$(run_make "$fixture_dir" ALMAKE_ENV_FILE=.env.custom git.clean 2>&1)"
+	output="$(run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.custom git.clean 2>&1)"
 
 	assert_file_exists "$fixture_dir/.env.custom"
 	assert_not_contains "$output" "Removing .env.custom"
@@ -185,14 +185,14 @@ test_new_module_files_are_auto_discovered_from_mk_directory() {
 
 	write_auto_module_fixture "$fixture_dir"
 
-	output="$(run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 help 2>&1)"
+	output="$(run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 help 2>&1)"
 
 	assert_contains "$output" "feature.toggle"
 
 	output="$(
 		run_make "$fixture_dir" \
-			ALMAKE_NO_AUTO_ENV_INIT=1 \
-			ALMAKE_DISABLE_MODULE_FEATURE_TOGGLE=1 \
+			ALMKFS_NO_AUTO_ENV_INIT=1 \
+			ALMKFS_DISABLE_MODULE_FEATURE_TOGGLE=1 \
 			help 2>&1
 	)"
 
@@ -207,9 +207,9 @@ test_help_excludes_disabled_module_targets_via_include_entrypoint() {
 
 	output="$(
 		run_make "$fixture_dir" \
-			ALMAKE_NO_AUTO_ENV_INIT=1 \
-			ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE=1 \
-			ALMAKE_DISABLE_MODULE_GIT=1 \
+			ALMKFS_NO_AUTO_ENV_INIT=1 \
+			ALMKFS_DISABLE_MODULE_DOCKER_COMPOSE=1 \
+			ALMKFS_DISABLE_MODULE_GIT=1 \
 			help 2>&1
 	)"
 
@@ -234,9 +234,9 @@ EOF
 
 	output="$(
 		run_make "$fixture_dir" \
-			ALMAKE_NO_AUTO_ENV_INIT=1 \
-			ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE=1 \
-			ALMAKE_DISABLE_MODULE_GIT=1 \
+			ALMKFS_NO_AUTO_ENV_INIT=1 \
+			ALMKFS_DISABLE_MODULE_DOCKER_COMPOSE=1 \
+			ALMKFS_DISABLE_MODULE_GIT=1 \
 			help 2>&1
 	)"
 

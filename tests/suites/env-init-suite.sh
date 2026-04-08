@@ -14,9 +14,9 @@ EOF
 
 	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
 	assert_file_exists "$fixture_dir/.env"
-	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_ENV_COMPOSE_FILES_CSV = .env"
-	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV = "
-	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_ENV_COMPOSE_FILES_CSV = .env"
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV = "
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
 	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "PROJECT_VAR = project-default"
 	assert_contains "$output" "Created almakefiles/.env.mk"
 	assert_contains "$output" "compose.config"
@@ -79,7 +79,7 @@ RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 
 	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
@@ -122,10 +122,10 @@ EOF
 
 	database="$(
 		run_make "$fixture_dir" \
-			ALMAKE_NO_AUTO_ENV_INIT=1 \
-			ALMAKE_ENV_TARGET_FILE_VARIABLES=RUNTIME_TARGET \
+			ALMKFS_NO_AUTO_ENV_INIT=1 \
+			ALMKFS_ENV_TARGET_FILE_VARIABLES=RUNTIME_TARGET \
 			RUNTIME_TARGET=.env.runtime \
-			ALMAKE_ENV_TARGET_FILES_CSV_VARIABLES=RUNTIME_TARGETS \
+			ALMKFS_ENV_TARGET_FILES_CSV_VARIABLES=RUNTIME_TARGETS \
 			RUNTIME_TARGETS=.env.alt \
 			-pnRr help 2>&1
 	)"
@@ -153,7 +153,7 @@ RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 
 	if ! printf '%s\n' "$output" | rg -q '^env\.reinit-env\.runtime[[:space:]]'; then
@@ -181,7 +181,7 @@ RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 
 	if ! printf '%s\n' "$output" | rg -q '^env\.reinit-env\.runtime[[:space:]]+Reinitialize the matching \.env\.runtime file from \.env\.runtime\.example$'; then
@@ -268,7 +268,7 @@ RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV=./.env.runtime.example help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV=./.env.runtime.example help 2>&1
 	)"
 
 	assert_contains "$output" "Warning: .env.runtime.example is missing a valid provenance header and is exempt from auto-fix"
@@ -291,7 +291,7 @@ EOF
 
 	set +e
 	output="$(
-			run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
+			run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 	status=$?
 	set -e
@@ -320,7 +320,7 @@ ALPHA_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 
 	assert_contains "$output" "Info: Added provenance header to .env.runtime.example"
@@ -352,7 +352,7 @@ OLD_RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime 2>&1
 	)"
 
 	assert_contains "$output" "Info: Rewrote invalid provenance header in .env.runtime.example"
@@ -401,8 +401,8 @@ EOF
 ALPHA_ENV=1
 EOF
 
-	run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help >/dev/null 2>&1
-	output="$(run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1)"
+	run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help >/dev/null 2>&1
+	output="$(run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1)"
 
 	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
 	assert_file_exists "$fixture_dir/.env"
@@ -431,7 +431,7 @@ test_query_mode_with_cli_env_make_override_does_not_create_any_env_files() {
 
 	eval "$(setup_fixture fixture_dir)"
 
-	output="$(run_make "$fixture_dir" ALMAKE_ENV_FILE=.env.kek -pnRr help 2>&1)"
+	output="$(run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.kek -pnRr help 2>&1)"
 
 	assert_file_not_exists "$fixture_dir/.env.kek"
 	assert_file_not_exists "$fixture_dir/.env"
@@ -457,7 +457,7 @@ EOF
 OLD_RUNTIME_ENV=1
 EOF
 
-	run_make "$fixture_dir" ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime
+	run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime
 
 	assert_file_exists "$fixture_dir/.env"
 	assert_first_line_equals "$runtime_file" "# this file created from .env.runtime.example"
@@ -481,7 +481,7 @@ EOF
 
 	set +e
 	output="$(
-		run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 ALMAKE_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime 2>&1
+		run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime 2>&1
 	)"
 	status=$?
 	set -e

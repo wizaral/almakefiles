@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/common.sh
 . "${script_dir}/lib/common.sh"
 
-make_bin="${ALMAKE_MAKE_BIN:-make}"
+make_bin="${ALMKFS_MAKE_BIN:-make}"
 help_target="${HELP_TARGET:-help}"
 
 declare -a active_targets=()
@@ -42,7 +42,7 @@ load_make_database() {
 		fi
 
 		command_line_override_args+=("${var_name}=${!var_name-}")
-	done < <(printf '%s\n' "${__ALMAKE_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
+	done < <(printf '%s\n' "${__ALMKFS_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
 
 	make_command=("$make_bin" "${command_line_override_args[@]}" -pnRr "$help_target")
 	"${make_command[@]}" >"$database_file" 2>/dev/null
@@ -94,7 +94,7 @@ load_help_files_from_csv() {
 		if [[ -f "$path" ]]; then
 			append_unique help_files "$path"
 		fi
-	done < <(split_csv "${__ALMAKE_HELP_FILE_LIST_CSV:-}")
+	done < <(split_csv "${__ALMKFS_HELP_FILE_LIST_CSV:-}")
 }
 
 load_help_files_from_database() {

@@ -167,7 +167,7 @@ EOF
 		run_make "$fixture_dir" var.debug-full 2>&1
 	)"
 
-	assert_contains "$debug_full_output" "__ALMAKE_DECLARED_ENV_FILES"
+	assert_contains "$debug_full_output" "__ALMKFS_DECLARED_ENV_FILES"
 	assert_not_contains "$debug_full_output" "LOCAL_SECRET"
 	assert_not_contains "$debug_full_output" "LOCAL_SECRET_FROM_MAKEFILE"
 	assert_not_contains "$debug_full_output" "EXACT_LOCAL_SECRET_MK"
@@ -184,17 +184,17 @@ test_env_make_accepts_supported_assignment_forms_and_comments() {
 include almakefiles/include.mk
 
 print:
-	@printf '%s\n' '$(ALMAKE_PUBLIC_EQ)|$(ALMAKE_PUBLIC_IMMEDIATE)|$(ALMAKE_PUBLIC_POSIX)|$(ALMAKE_PUBLIC_APPEND)|$(PROJECT_VALUE)'
+	@printf '%s\n' '$(ALMKFS_PUBLIC_EQ)|$(ALMKFS_PUBLIC_IMMEDIATE)|$(ALMKFS_PUBLIC_POSIX)|$(ALMKFS_PUBLIC_APPEND)|$(PROJECT_VALUE)'
 EOF
 
 	cat >"$fixture_dir/almakefiles/.env.mk" <<'EOF'
 # user-owned comment
 
-ALMAKE_PUBLIC_EQ = eq
-ALMAKE_PUBLIC_IMMEDIATE := $(ALMAKE_PUBLIC_EQ)-immediate
-ALMAKE_PUBLIC_POSIX ::= $(shell printf 'posix')
-ALMAKE_PUBLIC_APPEND = append
-ALMAKE_PUBLIC_APPEND += -ok
+ALMKFS_PUBLIC_EQ = eq
+ALMKFS_PUBLIC_IMMEDIATE := $(ALMKFS_PUBLIC_EQ)-immediate
+ALMKFS_PUBLIC_POSIX ::= $(shell printf 'posix')
+ALMKFS_PUBLIC_APPEND = append
+ALMKFS_PUBLIC_APPEND += -ok
 PROJECT_VALUE = project
 EOF
 
@@ -210,14 +210,14 @@ test_env_make_rejects_invalid_directives_and_names() {
 	local expected_reason
 
 	for case_entry in \
-		"override ALMAKE_BAD = 1|override directives are not allowed in .env.mk" \
-		"export ALMAKE_BAD = 1|export directives are not allowed in .env.mk" \
-		"private ALMAKE_BAD = 1|private directives are not allowed in .env.mk" \
-		"undefine ALMAKE_BAD|undefine directives are not allowed in .env.mk" \
-		"define ALMAKE_BAD|define blocks are not allowed in .env.mk" \
+		"override ALMKFS_BAD = 1|override directives are not allowed in .env.mk" \
+		"export ALMKFS_BAD = 1|export directives are not allowed in .env.mk" \
+		"private ALMKFS_BAD = 1|private directives are not allowed in .env.mk" \
+		"undefine ALMKFS_BAD|undefine directives are not allowed in .env.mk" \
+		"define ALMKFS_BAD|define blocks are not allowed in .env.mk" \
 		"endef|define blocks are not allowed in .env.mk" \
-		"ifdef ALMAKE_BAD|conditional directives are not allowed in .env.mk" \
-		"ifndef ALMAKE_BAD|conditional directives are not allowed in .env.mk" \
+		"ifdef ALMKFS_BAD|conditional directives are not allowed in .env.mk" \
+		"ifndef ALMKFS_BAD|conditional directives are not allowed in .env.mk" \
 		"ifeq (a,b)|conditional directives are not allowed in .env.mk" \
 		"ifneq (a,b)|conditional directives are not allowed in .env.mk" \
 		"else|conditional directives are not allowed in .env.mk" \
@@ -225,10 +225,10 @@ test_env_make_rejects_invalid_directives_and_names() {
 		"include local.mk|include directives are not allowed in .env.mk" \
 		"-include local.mk|include directives are not allowed in .env.mk" \
 		"sinclude local.mk|include directives are not allowed in .env.mk" \
-		"ALMAKE_BAD ?= 1|?= assignments are not allowed in .env.mk" \
-		"ALMAKE_BAD != printf hi|!= assignments are not allowed in .env.mk" \
+		"ALMKFS_BAD ?= 1|?= assignments are not allowed in .env.mk" \
+		"ALMKFS_BAD != printf hi|!= assignments are not allowed in .env.mk" \
 		"target: prerequisite|targets and rules are not allowed in .env.mk" \
-		"__ALMAKE_BAD = 1|__ALMAKE_* variables are not allowed in .env.mk" \
+		"__ALMKFS_BAD = 1|__ALMKFS_* variables are not allowed in .env.mk" \
 		"MAKEFLAGS = -j8|GNU Make system variables are not allowed in .env.mk"
 	do
 		eval "$(setup_fixture fixture_dir)"
@@ -248,14 +248,14 @@ test_env_make_bootstrap_skips_internal_and_system_question_defaults() {
 
 	cat >"$fixture_dir/project.mk" <<'EOF'
 PROJECT_ALLOWED ?= allowed
-__ALMAKE_INTERNAL ?= nope
+__ALMKFS_INTERNAL ?= nope
 MAKEFLAGS ?= -j8
 EOF
 
 	run_make "$fixture_dir" help >/dev/null 2>&1
 
 	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "PROJECT_ALLOWED = allowed"
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "__ALMAKE_INTERNAL = nope"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "__ALMKFS_INTERNAL = nope"
 	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "MAKEFLAGS = -j8"
 }
 
@@ -305,16 +305,16 @@ test_debug_targets_show_effective_winners() {
 	bootstrap_env_make "$fixture_dir"
 
 	debug_output="$(
-		run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 ALMAKE_ENV_COMPOSE_FILES_CSV=.env.local var.debug 2>&1
+		run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 ALMKFS_ENV_COMPOSE_FILES_CSV=.env.local var.debug 2>&1
 	)"
 	debug_full_output="$(
 		run_make "$fixture_dir" var.debug-full 2>&1
 	)"
 
-	assert_contains "$debug_output" "ALMAKE_ENV_COMPOSE_FILES_CSV"
+	assert_contains "$debug_output" "ALMKFS_ENV_COMPOSE_FILES_CSV"
 	assert_contains "$debug_output" "origin: command line"
-	assert_not_contains "$debug_output" "__ALMAKE_DECLARED_ENV_FILES"
-	assert_contains "$debug_full_output" "__ALMAKE_DECLARED_ENV_FILES"
+	assert_not_contains "$debug_output" "__ALMKFS_DECLARED_ENV_FILES"
+	assert_contains "$debug_full_output" "__ALMKFS_DECLARED_ENV_FILES"
 	assert_contains "$debug_full_output" "almakefiles/mk/env.mk"
 }
 
@@ -338,8 +338,8 @@ BLOCKED_EXTRA_DIR_VAR ?= blocked-extra-dir
 EOF
 
 	run_make "$fixture_dir" \
-		ALMAKE_SCAN_INCLUDE_DIRS_CSV=extras \
-		ALMAKE_SCAN_EXCLUDE_DIRS_CSV=almakefiles/local,extras \
+		ALMKFS_SCAN_INCLUDE_DIRS_CSV=extras \
+		ALMKFS_SCAN_EXCLUDE_DIRS_CSV=almakefiles/local,extras \
 		help >/dev/null 2>&1
 
 	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "KEPT_SCAN_VAR = kept"
@@ -367,8 +367,8 @@ BLOCKED_EXTRA_GLOB_VAR ?= blocked-extra-glob
 EOF
 
 	run_make "$fixture_dir" \
-		ALMAKE_SCAN_INCLUDE_GLOBS_CSV='extras/**/*.mk' \
-		ALMAKE_SCAN_EXCLUDE_GLOBS_CSV='blocked-root.makefile,extras/**/*.mk' \
+		ALMKFS_SCAN_INCLUDE_GLOBS_CSV='extras/**/*.mk' \
+		ALMKFS_SCAN_EXCLUDE_GLOBS_CSV='blocked-root.makefile,extras/**/*.mk' \
 		help >/dev/null 2>&1
 
 	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "KEPT_GLOB_VAR = kept-glob"
@@ -382,15 +382,15 @@ test_env_make_bootstrap_excludes_disabled_module_files() {
 	eval "$(setup_fixture fixture_dir)"
 
 	run_make "$fixture_dir" \
-		ALMAKE_NO_AUTO_ENV_INIT=1 \
-		ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE=1 \
-		ALMAKE_DISABLE_MODULE_GIT=1 \
+		ALMKFS_NO_AUTO_ENV_INIT=1 \
+		ALMKFS_DISABLE_MODULE_DOCKER_COMPOSE=1 \
+		ALMKFS_DISABLE_MODULE_GIT=1 \
 		help >/dev/null 2>&1
 
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_UID ="
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_ENV_COMPOSE_FILES_CSV = .env"
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_GIT_CLEAN_EXCLUDES_CSV = \$(ALMAKE_ENV_FILE)"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DOCKER_COMPOSE_UID ="
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_ENV_COMPOSE_FILES_CSV = .env"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_GIT_CLEAN_EXCLUDES_CSV = \$(ALMKFS_ENV_FILE)"
 }
 
 test_env_sync_env_make_respects_module_disable_from_env_make() {
@@ -401,17 +401,17 @@ test_env_sync_env_make_respects_module_disable_from_env_make() {
 	bootstrap_env_make "$fixture_dir"
 
 	cat >"$fixture_dir/almakefiles/.env.mk" <<'EOF'
-ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE = 1
+ALMKFS_DISABLE_MODULE_DOCKER_COMPOSE = 1
 # user-owned note
 EOF
 
-	run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 env.sync-env.mk >/dev/null 2>&1
+	run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 env.sync-env.mk >/dev/null 2>&1
 
-	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DISABLE_MODULE_DOCKER_COMPOSE = 1"
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DISABLE_MODULE_DOCKER_COMPOSE = 1"
 	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "# user-owned note"
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_UID ="
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_ENV_COMPOSE_FILES_CSV = .env"
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DOCKER_COMPOSE_UID ="
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_ENV_COMPOSE_FILES_CSV = .env"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_DOCKER_COMPOSE_FILES_CSV = compose.yaml"
 }
 
 test_env_make_bootstrap_does_not_scan_non_module_dropin_makefiles() {
@@ -436,16 +436,16 @@ test_auto_discovered_module_defaults_follow_module_enablement() {
 
 	write_auto_module_fixture "$fixture_dir"
 
-	run_make "$fixture_dir" ALMAKE_NO_AUTO_ENV_INIT=1 help >/dev/null 2>&1
-	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_FEATURE_TOGGLE_VALUE = feature-toggle-default"
+	run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 help >/dev/null 2>&1
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_FEATURE_TOGGLE_VALUE = feature-toggle-default"
 
 	rm -f "$fixture_dir/almakefiles/.env.mk"
 
 	run_make "$fixture_dir" \
-		ALMAKE_NO_AUTO_ENV_INIT=1 \
-		ALMAKE_DISABLE_MODULE_FEATURE_TOGGLE=1 \
+		ALMKFS_NO_AUTO_ENV_INIT=1 \
+		ALMKFS_DISABLE_MODULE_FEATURE_TOGGLE=1 \
 		help >/dev/null 2>&1
-	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMAKE_FEATURE_TOGGLE_VALUE = feature-toggle-default"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "ALMKFS_FEATURE_TOGGLE_VALUE = feature-toggle-default"
 }
 
 test_dry_run_debug_targets_print_recipes_without_executing_scripts() {
@@ -462,22 +462,22 @@ test_dry_run_debug_targets_print_recipes_without_executing_scripts() {
 		run_make "$fixture_dir" -n var.debug-full 2>&1
 	)"
 
-	assert_contains "$debug_output" "ALMAKE_MAKE_BIN='make'"
-	assert_contains "$debug_output" "ALMAKE_ENV_FILE='almakefiles/.env.mk'"
-	assert_contains "$debug_output" "ALMAKE_SCAN_INCLUDE_DIRS_CSV=''"
-	assert_contains "$debug_output" "ALMAKE_SCAN_INCLUDE_GLOBS_CSV=''"
-	assert_contains "$debug_output" "ALMAKE_SCAN_EXCLUDE_DIRS_CSV=''"
-	assert_contains "$debug_output" "ALMAKE_SCAN_EXCLUDE_GLOBS_CSV=''"
+	assert_contains "$debug_output" "ALMKFS_MAKE_BIN='make'"
+	assert_contains "$debug_output" "ALMKFS_ENV_FILE='almakefiles/.env.mk'"
+	assert_contains "$debug_output" "ALMKFS_SCAN_INCLUDE_DIRS_CSV=''"
+	assert_contains "$debug_output" "ALMKFS_SCAN_INCLUDE_GLOBS_CSV=''"
+	assert_contains "$debug_output" "ALMKFS_SCAN_EXCLUDE_DIRS_CSV=''"
+	assert_contains "$debug_output" "ALMKFS_SCAN_EXCLUDE_GLOBS_CSV=''"
 	assert_not_contains "$debug_output" "ENV_MAKE_SCRIPT_ARGS="
 	assert_not_contains "$debug_output" "origin:"
 	assert_not_contains "$debug_output" "source:"
 
-	assert_contains "$debug_full_output" "ALMAKE_MAKE_BIN='make'"
-	assert_contains "$debug_full_output" "ALMAKE_ENV_FILE='almakefiles/.env.mk'"
-	assert_contains "$debug_full_output" "ALMAKE_SCAN_INCLUDE_DIRS_CSV=''"
-	assert_contains "$debug_full_output" "ALMAKE_SCAN_INCLUDE_GLOBS_CSV=''"
-	assert_contains "$debug_full_output" "ALMAKE_SCAN_EXCLUDE_DIRS_CSV=''"
-	assert_contains "$debug_full_output" "ALMAKE_SCAN_EXCLUDE_GLOBS_CSV=''"
+	assert_contains "$debug_full_output" "ALMKFS_MAKE_BIN='make'"
+	assert_contains "$debug_full_output" "ALMKFS_ENV_FILE='almakefiles/.env.mk'"
+	assert_contains "$debug_full_output" "ALMKFS_SCAN_INCLUDE_DIRS_CSV=''"
+	assert_contains "$debug_full_output" "ALMKFS_SCAN_INCLUDE_GLOBS_CSV=''"
+	assert_contains "$debug_full_output" "ALMKFS_SCAN_EXCLUDE_DIRS_CSV=''"
+	assert_contains "$debug_full_output" "ALMKFS_SCAN_EXCLUDE_GLOBS_CSV=''"
 	assert_contains "$debug_full_output" "debug --full"
 	assert_not_contains "$debug_full_output" "ENV_MAKE_SCRIPT_ARGS="
 	assert_not_contains "$debug_full_output" "origin:"
@@ -491,7 +491,7 @@ test_first_make_with_cli_env_make_override_creates_override_and_continues() {
 	eval "$(setup_fixture fixture_dir)"
 
 	output="$(
-		run_make "$fixture_dir" ALMAKE_ENV_FILE=.env.lol help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.lol help 2>&1
 	)"
 
 	assert_file_exists "$fixture_dir/.env.lol"
@@ -510,7 +510,7 @@ test_first_make_with_quoted_cli_env_make_override_creates_override_and_continues
 	env_make_path="$fixture_dir/.env.o'hare"
 
 	output="$(
-		run_make "$fixture_dir" "ALMAKE_ENV_FILE=.env.o'hare" help 2>&1
+		run_make "$fixture_dir" "ALMKFS_ENV_FILE=.env.o'hare" help 2>&1
 	)"
 
 	assert_file_exists "$env_make_path"
@@ -533,7 +533,7 @@ TEST_VAR ?= ok
 EOF
 
 	output="$(
-		run_make "$fixture_dir" "ALMAKE_SCAN_INCLUDE_DIRS_CSV=dir'o" help 2>&1
+		run_make "$fixture_dir" "ALMKFS_SCAN_INCLUDE_DIRS_CSV=dir'o" help 2>&1
 	)"
 
 	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
@@ -561,15 +561,15 @@ build: stamp
 	cat stamp
 EOF
 
-	run_make "$fixture_dir" ALMAKE_GLOBAL_MAKEFLAGS= build >/dev/null 2>&1
+	run_make "$fixture_dir" ALMKFS_GLOBAL_MAKEFLAGS= build >/dev/null 2>&1
 	first_stamp="$(cat "$fixture_dir/stamp")"
 
 	sleep 1
 
-	run_make "$fixture_dir" ALMAKE_GLOBAL_MAKEFLAGS= build >/dev/null 2>&1
+	run_make "$fixture_dir" ALMKFS_GLOBAL_MAKEFLAGS= build >/dev/null 2>&1
 	second_stamp="$(cat "$fixture_dir/stamp")"
 
-	assert_equals "$second_stamp" "$first_stamp" "stamp value with ALMAKE_GLOBAL_MAKEFLAGS override"
+	assert_equals "$second_stamp" "$first_stamp" "stamp value with ALMKFS_GLOBAL_MAKEFLAGS override"
 }
 
 test_public_computed_vars_ignore_external_overrides() {
@@ -580,14 +580,14 @@ test_public_computed_vars_ignore_external_overrides() {
 
 	output="$(
 		run_make "$fixture_dir" \
-			ALMAKE_DIRECTORY_PATH=broken/path \
-			ALMAKE_MAKE_BIN=broken-make \
+			ALMKFS_DIRECTORY_PATH=broken/path \
+			ALMKFS_MAKE_BIN=broken-make \
 			var.debug-full 2>&1
 	)"
 
-	assert_contains "$output" "ALMAKE_DIRECTORY_PATH"
+	assert_contains "$output" "ALMKFS_DIRECTORY_PATH"
 	assert_contains "$output" "  value: almakefiles"
-	assert_contains "$output" "ALMAKE_MAKE_BIN"
+	assert_contains "$output" "ALMKFS_MAKE_BIN"
 	assert_contains "$output" "  value: make"
 }
 
@@ -599,9 +599,9 @@ test_debug_reports_canonical_directory_path_for_nested_dropin() {
 
 	output="$(run_make "$fixture_dir" var.debug-full 2>&1)"
 
-	assert_contains "$output" "ALMAKE_DIRECTORY_PATH"
+	assert_contains "$output" "ALMKFS_DIRECTORY_PATH"
 	assert_contains "$output" "  value: tools/dev-layer"
-	assert_contains "$output" "ALMAKE_ENV_FILE"
+	assert_contains "$output" "ALMKFS_ENV_FILE"
 	assert_contains "$output" "  value: tools/dev-layer/.env.mk"
 }
 
@@ -615,9 +615,9 @@ test_debug_reports_absolute_directory_path_for_outside_dropin() {
 
 	output="$(run_make "$fixture_dir" var.debug-full 2>&1)"
 
-	assert_contains "$output" "ALMAKE_DIRECTORY_PATH"
+	assert_contains "$output" "ALMKFS_DIRECTORY_PATH"
 	assert_contains "$output" "  value: $expected_path"
-	assert_contains "$output" "ALMAKE_ENV_FILE"
+	assert_contains "$output" "ALMKFS_ENV_FILE"
 	assert_contains "$output" "  value: .env.mk"
 }
 

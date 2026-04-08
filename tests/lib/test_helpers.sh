@@ -191,12 +191,12 @@ write_auto_module_fixture() {
 	local fixture_dir="$1"
 
 cat >"$fixture_dir/almakefiles/mk/feature-toggle.mk" <<'EOF'
-ifeq ($(ALMAKE_DISABLE_MODULE_FEATURE_TOGGLE),1)
-else ifndef __ALMAKE_INCLUDE_GUARD_FEATURE_TOGGLE
-override __ALMAKE_INCLUDE_GUARD_FEATURE_TOGGLE = 1
-ALMAKE_DISABLE_MODULE_FEATURE_TOGGLE ?=
+ifeq ($(ALMKFS_DISABLE_MODULE_FEATURE_TOGGLE),1)
+else ifndef __ALMKFS_INCLUDE_GUARD_FEATURE_TOGGLE
+override __ALMKFS_INCLUDE_GUARD_FEATURE_TOGGLE = 1
+ALMKFS_DISABLE_MODULE_FEATURE_TOGGLE ?=
 
-ALMAKE_FEATURE_TOGGLE_VALUE ?= feature-toggle-default
+ALMKFS_FEATURE_TOGGLE_VALUE ?= feature-toggle-default
 
 feature.toggle: ## Toggle feature target
 	@printf '%s\n' 'feature-toggle'
