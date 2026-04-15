@@ -318,6 +318,64 @@ test_debug_targets_show_effective_winners() {
 	assert_contains "$debug_full_output" "almakefiles/mk/env.mk"
 }
 
+test_var_debug_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+FOO.BAR ?= default-dot
+include almakefiles/include.mk
+EOF
+
+	output="$(
+		run_make "$fixture_dir" 'FOO.BAR=override dot' var.debug 2>&1
+	)"
+
+	assert_contains "$output" "FOO.BAR"
+	assert_contains "$output" "  value: override dot"
+	assert_contains "$output" "  origin: command line"
+}
+
+test_var_debug_full_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+FEATURE-FLAG ?= default-dash
+include almakefiles/include.mk
+EOF
+
+	output="$(
+		run_make "$fixture_dir" 'FEATURE-FLAG=override dash' var.debug-full 2>&1
+	)"
+
+	assert_contains "$output" "FEATURE-FLAG"
+	assert_contains "$output" "  value: override dash"
+	assert_contains "$output" "  origin: command line"
+}
+
+test_debug_full_reports_project_defaults_when_project_path_contains_spaces() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture_with_project_dir_name fixture_dir 'project with space')"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+PROJECT_VAR ?= project-default
+include almakefiles/include.mk
+EOF
+
+	output="$(run_make "$fixture_dir" var.debug-full 2>&1)"
+
+	assert_contains "$output" "PROJECT_VAR"
+	assert_contains "$output" "  value: project-default"
+	assert_contains "$output" "  origin: file"
+}
+
 test_env_make_scan_exclude_dirs_csv_filters_matching_directories() {
 	local fixture_dir
 
@@ -661,6 +719,9 @@ run_env_make_suite() {
 	test_env_reinit_env_make_rebuilds_from_example_and_defaults
 	test_debug_full_excludes_hidden_local_make_files
 	test_debug_targets_show_effective_winners
+	test_var_debug_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers
+	test_var_debug_full_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers
+	test_debug_full_reports_project_defaults_when_project_path_contains_spaces
 	test_env_make_scan_exclude_dirs_csv_filters_matching_directories
 	test_env_make_scan_exclude_globs_csv_filters_matching_paths
 	test_env_make_bootstrap_excludes_disabled_module_files

@@ -7,13 +7,13 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 make_bin="${ALMKFS_MAKE_BIN:-make}"
 help_target="${HELP_TARGET:-help}"
+raw_makeoverrides="${__ALMKFS_RAW_MAKEOVERRIDES:-}"
 
 declare -a active_targets=()
 declare -a help_files=()
 declare -a help_patterns=()
 declare -a help_descriptions=()
 declare -a pattern_placeholders=()
-declare -a command_line_override_args=()
 
 declare -A active_target_set=()
 declare -A printed_targets=()
@@ -31,21 +31,15 @@ cleanup() {
 trap cleanup EXIT
 
 load_make_database() {
-	local var_name
 	local -a make_command=()
 
 	database_file="$(mktemp)"
-	command_line_override_args=()
-	while IFS= read -r var_name; do
-		if [[ -z "$var_name" ]]; then
-			continue
-		fi
-
-		command_line_override_args+=("${var_name}=${!var_name-}")
-	done < <(printf '%s\n' "${__ALMKFS_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
-
-	make_command=("$make_bin" "${command_line_override_args[@]}" -pnRr "$help_target")
-	"${make_command[@]}" >"$database_file" 2>/dev/null
+	make_command=("$make_bin" -pnRr "$help_target")
+	if [[ -n "$raw_makeoverrides" ]]; then
+		MAKEFLAGS=" -- $raw_makeoverrides" "${make_command[@]}" >"$database_file" 2>/dev/null
+	else
+		"${make_command[@]}" >"$database_file" 2>/dev/null
+	fi
 }
 
 load_active_targets() {

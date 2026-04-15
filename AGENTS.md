@@ -67,7 +67,7 @@ The goal is stable mechanics, not backward compatibility.
 - Discovers optional modules from `mk/*.mk` and `mk/*.makefile`.
 - Owns early `.env.mk` bootstrap, validation, and early include.
 - Owns shared Make helpers used by multiple modules.
-- Tracks current command-line Make variables for nested debug/help database reads.
+- Preserves raw `MAKEOVERRIDES` for nested debug/help database reads.
 
 ### `mk/env.mk`
 

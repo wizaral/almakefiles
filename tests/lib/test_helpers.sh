@@ -111,6 +111,30 @@ create_fixture() {
 	create_fixture_with_dropin_path "almakefiles" "include almakefiles/include.mk"
 }
 
+create_fixture_with_project_dir_name() {
+	local project_dir_name="$1"
+	local dropin_path="${2:-almakefiles}"
+	local include_line="${3:-include almakefiles/include.mk}"
+	local workspace_dir
+	local fixture_dir
+
+	workspace_dir="$(mktemp -d)"
+	fixture_dir="$workspace_dir/$project_dir_name"
+	mkdir -p "$fixture_dir/$dropin_path"
+	(
+		cd "$REPO_ROOT" || exit 1
+		find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env.mk' -exec cp -R {} "$fixture_dir/$dropin_path/" \;
+	)
+	printf '%s\n' "$include_line" >"$fixture_dir/makefile"
+	cat >"$fixture_dir/.env.example" <<'EOF'
+# this file created from .env.example
+ROOT_ENV=1
+EOF
+	mkdir -p "$fixture_dir/bin"
+
+	printf '%s\n' "$fixture_dir"
+}
+
 create_fixture_with_dropin_path() {
 	local dropin_path="$1"
 	local include_line="$2"
@@ -139,6 +163,16 @@ setup_fixture() {
 	local fixture_path
 
 	fixture_path="$(create_fixture)"
+	printf 'trap -- %q RETURN\n' "$(fixture_cleanup_trap_command "$fixture_path")"
+	printf '%s=%q\n' "$variable_name" "$fixture_path"
+}
+
+setup_fixture_with_project_dir_name() {
+	local variable_name="$1"
+	local project_dir_name="$2"
+	local fixture_path
+
+	fixture_path="$(create_fixture_with_project_dir_name "$project_dir_name")"
 	printf 'trap -- %q RETURN\n' "$(fixture_cleanup_trap_command "$fixture_path")"
 	printf '%s=%q\n' "$variable_name" "$fixture_path"
 }

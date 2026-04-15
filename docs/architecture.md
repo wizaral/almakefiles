@@ -12,6 +12,9 @@ That rule prevents a split-brain configuration where the user-provided variable 
 - the same canonical path may be loaded more than once
 - a different canonical `include.mk` path in the same run is an immediate error
 
+Startup path resolution keeps the loaded `include.mk` and `mk/common.mk` paths in their literal relative form until canonicalization is needed.
+That keeps first-load behavior stable when the consumer project root contains spaces.
+
 ## Canonical Directory Path
 
 `mk/common.mk` computes `ALMKFS_DIRECTORY_PATH` from the actual loaded `mk/common.mk` file.

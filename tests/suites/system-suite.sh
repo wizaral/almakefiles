@@ -177,6 +177,42 @@ EOF
 	assert_contains "$output" "compose.exec-worker"
 }
 
+test_help_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	output="$(
+		run_make "$fixture_dir" 'FOO.BAR=override dot' help 2>&1
+	)"
+
+	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
+	assert_file_exists "$fixture_dir/.env"
+	assert_contains "$output" "help"
+	assert_contains "$output" "git.clean"
+}
+
+test_help_bootstraps_when_project_path_contains_spaces() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture_with_project_dir_name fixture_dir 'project with space')"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+PROJECT_VAR ?= project-default
+include almakefiles/include.mk
+EOF
+
+	output="$(run_make "$fixture_dir" help 2>&1)"
+
+	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
+	assert_file_exists "$fixture_dir/.env"
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "PROJECT_VAR = project-default"
+	assert_contains "$output" "help"
+	assert_contains "$output" "git.clean"
+}
+
 test_new_module_files_are_auto_discovered_from_mk_directory() {
 	local fixture_dir
 	local output
@@ -280,6 +316,8 @@ run_system_suite() {
 	test_compose_exec_targets_are_generated_from_discovered_services
 	test_compose_exec_targets_are_skipped_when_service_discovery_fails
 	test_help_lists_generated_targets_from_active_modules
+	test_help_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers
+	test_help_bootstraps_when_project_path_contains_spaces
 	test_new_module_files_are_auto_discovered_from_mk_directory
 	test_help_excludes_disabled_module_targets_via_include_entrypoint
 	test_help_excludes_disabled_module_targets_when_modules_are_included_directly

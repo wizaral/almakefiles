@@ -91,10 +91,11 @@ endef
 
 ###
 
-override __ALMKFS_COMMON_MAKEFILE := $(realpath $(lastword $(MAKEFILE_LIST)))
-override __ALMKFS_MK_DIRECTORY := $(patsubst %/,%,$(dir $(__ALMKFS_COMMON_MAKEFILE)))
-override __ALMKFS_DIRECTORY_REALPATH := $(patsubst %/,%,$(dir $(__ALMKFS_MK_DIRECTORY)))
-override __ALMKFS_PROJECT_ROOT_REALPATH := $(realpath $(CURDIR))
+override __ALMKFS_COMMON_MAKEFILE_FILE := $(lastword $(MAKEFILE_LIST))
+override __ALMKFS_COMMON_MAKEFILE := $(realpath $(__ALMKFS_COMMON_MAKEFILE_FILE))
+override __ALMKFS_MK_DIRECTORY := $(patsubst %/,%,$(dir $(__ALMKFS_COMMON_MAKEFILE_FILE)))
+override __ALMKFS_DIRECTORY_REALPATH := $(realpath $(__ALMKFS_MK_DIRECTORY)/..)
+override __ALMKFS_PROJECT_ROOT_REALPATH := $(shell pwd -P)
 
 override ALMKFS_DIRECTORY_PATH := $(shell realpath --relative-base=$(call almkfs-shell-quote,$(__ALMKFS_PROJECT_ROOT_REALPATH)) --relative-to=$(call almkfs-shell-quote,$(__ALMKFS_PROJECT_ROOT_REALPATH)) $(call almkfs-shell-quote,$(__ALMKFS_DIRECTORY_REALPATH)))
 
@@ -121,7 +122,7 @@ override __ALMKFS_TOP_LEVEL := $(if $(filter 0,$(MAKELEVEL)),1,)
 override __ALMKFS_QUERY_FLAGS := $(filter-out --% %=%,$(strip $(MAKEFLAGS)))
 override __ALMKFS_QUERY_MODE := $(if $(or $(filter --just-print --dry-run --recon --print-data-base --question,$(strip $(MAKEFLAGS))),$(call almkfs-findstring-any,n p q,$(__ALMKFS_QUERY_FLAGS))),1,)
 override __ALMKFS_ENV_MAKE_RULE_ENABLED := $(if $(or $(__ALMKFS_QUERY_MODE),$(if $(__ALMKFS_TOP_LEVEL),,1)),,1)
-override __ALMKFS_COMMAND_LINE_VARIABLES := $(strip $(foreach v,$(.VARIABLES),$(if $(filter command line,$(origin $(v))),$(v),)))
+override __ALMKFS_RAW_MAKEOVERRIDES := $(MAKEOVERRIDES)
 
 override __ALMKFS_MK_CONTENT := $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/*.mk) $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/*.makefile)
 override __ALMKFS_HIDDEN_MODULE_FILES := $(strip $(ALMKFS_DIRECTORY_PATH)/mk/.mk $(ALMKFS_DIRECTORY_PATH)/mk/.makefile $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/.*.mk) $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/.*.makefile))
@@ -151,7 +152,7 @@ override MAKEFLAGS += $(ALMKFS_GLOBAL_MAKEFLAGS)
 ###
 
 help: ## Show available targets
-	$(call almkfs-gen-env-list,__ALMKFS_COMMAND_LINE_VARIABLES __ALMKFS_HELP_FILE_LIST_CSV ALMKFS_MAKE_BIN) bash $(__ALMKFS_HELP_SCRIPT)
+	$(call almkfs-gen-env-list,__ALMKFS_RAW_MAKEOVERRIDES __ALMKFS_HELP_FILE_LIST_CSV ALMKFS_MAKE_BIN) bash $(__ALMKFS_HELP_SCRIPT)
 
 ###
 

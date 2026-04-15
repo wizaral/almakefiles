@@ -7,6 +7,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 project_root="$(pwd -P)"
 make_bin="${ALMKFS_MAKE_BIN:-make}"
+raw_makeoverrides="${__ALMKFS_RAW_MAKEOVERRIDES:-}"
 
 normalize_directory_path() {
 	local path="$1"
@@ -32,7 +33,6 @@ env_make_file="${ALMKFS_ENV_FILE:-$(default_env_make_file_from_directory_path "$
 declare -a scan_files=()
 declare -a question_default_vars=()
 declare -a project_vars=()
-declare -a command_line_override_args=()
 
 declare -A question_default_rhs=()
 declare -A question_default_sources=()
@@ -97,7 +97,7 @@ validate_env_make_file() {
 			continue
 		fi
 
-		if [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*(=|:=|::=|\+=)[[:space:]]*(.*)$ ]]; then
+		if [[ "$line" =~ ^[[:space:]]*([^:#=[:space:]]+)[[:space:]]*(=|:=|::=|\+=)[[:space:]]*(.*)$ ]]; then
 			var_name="${BASH_REMATCH[1]}"
 
 			if [[ "$var_name" == __ALMKFS_* ]]; then
@@ -113,12 +113,12 @@ validate_env_make_file() {
 			continue
 		fi
 
-		if [[ "$line" =~ ^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*\?=[[:space:]]*(.*)$ ]]; then
+		if [[ "$line" =~ ^[[:space:]]*[^:#=[:space:]]+[[:space:]]*\?=[[:space:]]*(.*)$ ]]; then
 			report_invalid_env_make_line "$path" "$line_number" "?= assignments are not allowed in .env.mk"
 			return 1
 		fi
 
-		if [[ "$line" =~ ^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*!=[[:space:]]*(.*)$ ]]; then
+		if [[ "$line" =~ ^[[:space:]]*[^:#=[:space:]]+[[:space:]]*!=[[:space:]]*(.*)$ ]]; then
 			report_invalid_env_make_line "$path" "$line_number" "!= assignments are not allowed in .env.mk"
 			return 1
 		fi
@@ -176,19 +176,6 @@ normalize_scan_path() {
 	done
 
 	printf '%s' "$path"
-}
-
-build_command_line_override_args() {
-	local var_name
-
-	command_line_override_args=()
-	while IFS= read -r var_name; do
-		if [[ -z "$var_name" ]]; then
-			continue
-		fi
-
-		command_line_override_args+=("${var_name}=${!var_name-}")
-	done < <(printf '%s\n' "${__ALMKFS_COMMAND_LINE_VARIABLES:-}" | tr ' ' '\n')
 }
 
 is_hidden_make_scan_file() {
@@ -358,7 +345,7 @@ scan_assignments() {
 		line_number=0
 		while IFS= read -r line || [[ -n "$line" ]]; do
 			line_number=$((line_number + 1))
-				if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*([:+?!]?=)[[:space:]]*(.*)$ ]]; then
+				if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?([^:#=[:space:]]+)[[:space:]]*([:+?!]?=)[[:space:]]*(.*)$ ]]; then
 					var_name="${BASH_REMATCH[2]}"
 					operator="${BASH_REMATCH[3]}"
 					rhs="${BASH_REMATCH[4]}"
@@ -446,7 +433,7 @@ collect_existing_env_make_vars() {
 
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		line_number=$((line_number + 1))
-		if [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*(=|:=|::=|\+=)[[:space:]]*(.*)$ ]]; then
+		if [[ "$line" =~ ^[[:space:]]*([^:#=[:space:]]+)[[:space:]]*(=|:=|::=|\+=)[[:space:]]*(.*)$ ]]; then
 			var_name="${BASH_REMATCH[1]}"
 			existing_env_make_vars["$var_name"]=1
 		fi
@@ -508,10 +495,13 @@ load_database_records() {
 	declare -gA database_source=()
 
 	database_file="$(mktemp)"
-	build_command_line_override_args
-	make_command=("$make_bin" "${command_line_override_args[@]}" -pnRr help)
+	make_command=("$make_bin" -pnRr help)
 
-	"${make_command[@]}" >"$database_file" 2>/dev/null
+	if [[ -n "$raw_makeoverrides" ]]; then
+		MAKEFLAGS=" -- $raw_makeoverrides" "${make_command[@]}" >"$database_file" 2>/dev/null
+	else
+		"${make_command[@]}" >"$database_file" 2>/dev/null
+	fi
 
 	while IFS=$'\t' read -r var_name origin source value; do
 		database_value["$var_name"]="$value"
@@ -522,7 +512,7 @@ load_database_records() {
 			function emit_record(current_comment, current_line, line_parts, comment_parts, origin, source, value) {
 				split("", line_parts)
 				split("", comment_parts)
-				if (!match(current_line, /^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*[:+?!]?=[[:space:]]*(.*)$/, line_parts)) {
+				if (!match(current_line, /^([^:#=[:space:]]+)[[:space:]]*[:+?!]?=[[:space:]]*(.*)$/, line_parts)) {
 					return
 				}
 
