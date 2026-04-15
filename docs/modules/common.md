@@ -37,6 +37,7 @@
 - Computes the default location of `ALMKFS_ENV_FILE`.
 - Discovers active optional module files.
 - Bootstraps and includes `ALMKFS_ENV_FILE` early on normal top-level runs.
+- Classifies query-style runs from real Make option tokens instead of substring matches inside unrelated `MAKEFLAGS` arguments.
 - Passes the active Makefile list to the help generator.
 - Preserves outer command-line variable winners, including valid GNU Make names that are not shell identifiers, for nested debug/help database reads.
 - Keeps startup path resolution stable when the consumer project root contains spaces.

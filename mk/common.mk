@@ -89,6 +89,31 @@ common.ensure-$1: ## Ensures $1 is installed
 	$(call almkfs-require,$1,$2)
 endef
 
+# 1 - token
+override define almkfs-query-token-has-attached-argument
+$(if $(or $(filter -C% -f% -I% -o% -W% -O% -j% -l%,$1),$(filter --directory=% --file=% --makefile=% --include-dir=% --old-file=% --assume-old=% --new-file=% --what-if=% --assume-new=% --eval=% --output-sync=% --jobs=% --load-average=% --max-load=%,$1)),1,)
+endef
+
+# 1 - current token, 2 - next token
+override define almkfs-query-token-consumes-next
+$(if $(filter -C -f -I -o -W --directory --file --makefile --include-dir --old-file --assume-old --new-file --what-if --assume-new --eval,$1),1,$(if $(filter -O -j -l --output-sync --jobs --load-average --max-load,$1),$(if $(and $2,$(if $(filter -% --%,$2),,1)),1,),))
+endef
+
+# 1 - token
+override define almkfs-query-token-is-scan-candidate
+$(if $(or $(filter --%,$1),$(filter %=%,$1),$(call almkfs-query-token-has-attached-argument,$1),$(filter -C -f -I -o -W -O -j -l --directory --file --makefile --include-dir --old-file --assume-old --new-file --what-if --assume-new --eval --output-sync --jobs --load-average --max-load,$1)),,$1)
+endef
+
+# 1 - remaining MAKEFLAGS tokens
+override define almkfs-query-scan-tokens
+$(strip $(if $(strip $1),$(call almkfs-query-scan-tokens-step,$(firstword $1),$(word 2,$1),$(wordlist 2,$(words $1),$1)),))
+endef
+
+# 1 - current token, 2 - next token, 3 - remaining tokens after current
+override define almkfs-query-scan-tokens-step
+$(strip $(call almkfs-query-token-is-scan-candidate,$1) $(call almkfs-query-scan-tokens,$(if $(call almkfs-query-token-consumes-next,$1,$2),$(wordlist 2,$(words $3),$3),$3)))
+endef
+
 ###
 
 override __ALMKFS_COMMON_MAKEFILE_FILE := $(lastword $(MAKEFILE_LIST))
@@ -119,7 +144,7 @@ $(if $(wildcard $(__ALMKFS_HELP_SCRIPT)),,$(error Invalid almakefiles layout: mi
 ###
 
 override __ALMKFS_TOP_LEVEL := $(if $(filter 0,$(MAKELEVEL)),1,)
-override __ALMKFS_QUERY_FLAGS := $(filter-out --% %=%,$(strip $(MAKEFLAGS)))
+override __ALMKFS_QUERY_FLAGS := $(call almkfs-query-scan-tokens,$(strip $(MAKEFLAGS)))
 override __ALMKFS_QUERY_MODE := $(if $(or $(filter --just-print --dry-run --recon --print-data-base --question,$(strip $(MAKEFLAGS))),$(call almkfs-findstring-any,n p q,$(__ALMKFS_QUERY_FLAGS))),1,)
 override __ALMKFS_ENV_MAKE_RULE_ENABLED := $(if $(or $(__ALMKFS_QUERY_MODE),$(if $(__ALMKFS_TOP_LEVEL),,1)),,1)
 override __ALMKFS_RAW_MAKEOVERRIDES := $(MAKEOVERRIDES)

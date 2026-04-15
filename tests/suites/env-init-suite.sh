@@ -201,6 +201,44 @@ test_dry_run_long_option_does_not_bootstrap_or_auto_init() {
 	assert_file_not_exists "$fixture_dir/.env"
 }
 
+test_non_query_makeflags_with_output_sync_argument_does_not_disable_bootstrap_or_auto_init() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+MAKEFLAGS += -Onone
+include almakefiles/include.mk
+EOF
+
+	output="$(run_make "$fixture_dir" help 2>&1)"
+
+	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
+	assert_file_exists "$fixture_dir/.env"
+	assert_contains "$output" "Created almakefiles/.env.mk"
+	assert_contains "$output" "Created .env from .env.example"
+}
+
+test_non_query_makeflags_with_include_dir_argument_does_not_disable_bootstrap_or_auto_init() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+MAKEFLAGS += -I nope
+include almakefiles/include.mk
+EOF
+
+	output="$(run_make "$fixture_dir" help 2>&1)"
+
+	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
+	assert_file_exists "$fixture_dir/.env"
+	assert_contains "$output" "Created almakefiles/.env.mk"
+	assert_contains "$output" "Created .env from .env.example"
+}
+
 test_missing_example_provenance_is_auto_added_on_normal_make() {
 	local fixture_dir
 	local output
@@ -536,6 +574,8 @@ run_env_init_suite() {
 	test_env_reinit_enforces_example_provenance_before_copying
 	test_query_mode_does_not_mutate_examples_or_targets_when_example_provenance_is_invalid
 	test_dry_run_long_option_does_not_bootstrap_or_auto_init
+	test_non_query_makeflags_with_output_sync_argument_does_not_disable_bootstrap_or_auto_init
+	test_non_query_makeflags_with_include_dir_argument_does_not_disable_bootstrap_or_auto_init
 	test_second_help_with_declared_runtime_env_is_idempotent
 	test_query_mode_does_not_bootstrap_env_make
 	test_query_mode_with_cli_env_make_override_does_not_create_any_env_files

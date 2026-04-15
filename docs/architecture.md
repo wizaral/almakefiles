@@ -89,6 +89,7 @@ Normal top-level runs follow two phases:
 Declared env targets require matching `.env*.example` files.
 
 Recursive and query-style runs must not create files.
+Query detection must be option-aware: non-query `MAKEFLAGS` entries such as `-Onone` or `-I dir` must not disable bootstrap just because their arguments contain `n`, `p`, or `q`.
 
 ## Module Discovery
 
