@@ -332,51 +332,108 @@ reset_scan_results() {
 	project_var_seen=()
 }
 
-scan_assignments() {
-	local file
+recipe_prefix_from_rhs() {
+	local rhs="$1"
+
+	rhs="$(trim_whitespace "$rhs")"
+	if [[ -n "$rhs" ]]; then
+		printf '%s' "${rhs:0:1}"
+	else
+		printf '\t'
+	fi
+}
+
+record_scanned_assignment() {
+	local file="$1"
+	local line_number="$2"
+	local var_name="$3"
+	local operator="$4"
+	local rhs="$5"
+
+	if [[ ! -v project_var_seen["$var_name"] ]]; then
+		project_var_seen["$var_name"]=1
+		project_vars+=("$var_name")
+	fi
+
+	if [[ "$operator" != '?=' ]]; then
+		return 0
+	fi
+
+	if [[ "$var_name" == "ALMKFS_ENV_FILE" ]]; then
+		return 0
+	fi
+
+	if ! is_env_make_public_var_allowed "$var_name"; then
+		return 0
+	fi
+
+	if [[ ! -v question_default_sources["$var_name"] ]]; then
+		question_default_vars+=("$var_name")
+		question_default_rhs["$var_name"]="$rhs"
+		question_default_sources["$var_name"]="$file:$line_number"
+		question_default_source_lists["$var_name"]="$file:$line_number"
+		question_default_counts["$var_name"]=1
+	else
+		question_default_counts["$var_name"]=$((question_default_counts["$var_name"] + 1))
+		question_default_source_lists["$var_name"]+=$'\n'"$file:$line_number"
+	fi
+}
+
+scan_assignments_in_file() {
+	local file="$1"
 	local line
-	local line_number
+	local line_number=0
 	local var_name
 	local operator
 	local rhs
+	local recipe_prefix=$'\t'
+	local define_depth=0
+
+	# shellcheck disable=SC2094
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		line_number=$((line_number + 1))
+
+		if ((define_depth > 0)); then
+			if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?define([[:space:]]|$) ]]; then
+				define_depth=$((define_depth + 1))
+			fi
+
+			if [[ "$line" =~ ^[[:space:]]*endef([[:space:]]|$) ]]; then
+				define_depth=$((define_depth - 1))
+			fi
+
+			continue
+		fi
+
+		if [[ -n "$line" && "${line:0:1}" == "$recipe_prefix" ]]; then
+			continue
+		fi
+
+		if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?define([[:space:]]|$) ]]; then
+			define_depth=1
+			continue
+		fi
+
+		if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?([^:#=[:space:]]+)[[:space:]]*([:+?!]?=)[[:space:]]*(.*)$ ]]; then
+			var_name="${BASH_REMATCH[2]}"
+			operator="${BASH_REMATCH[3]}"
+			rhs="${BASH_REMATCH[4]}"
+
+			record_scanned_assignment "$file" "$line_number" "$var_name" "$operator" "$rhs"
+
+			if [[ "$var_name" == ".RECIPEPREFIX" ]]; then
+				recipe_prefix="$(recipe_prefix_from_rhs "$rhs")"
+			fi
+		fi
+	done <"$file"
+}
+
+scan_assignments() {
+	local file
 
 	reset_scan_results
 	for file in "${scan_files[@]}"; do
-		line_number=0
-		while IFS= read -r line || [[ -n "$line" ]]; do
-			line_number=$((line_number + 1))
-				if [[ "$line" =~ ^[[:space:]]*(override[[:space:]]+)?([^:#=[:space:]]+)[[:space:]]*([:+?!]?=)[[:space:]]*(.*)$ ]]; then
-					var_name="${BASH_REMATCH[2]}"
-					operator="${BASH_REMATCH[3]}"
-					rhs="${BASH_REMATCH[4]}"
-
-				if [[ ! -v project_var_seen["$var_name"] ]]; then
-					project_var_seen["$var_name"]=1
-					project_vars+=("$var_name")
-				fi
-
-					if [[ "$operator" == '?=' ]]; then
-						if [[ "$var_name" == "ALMKFS_ENV_FILE" ]]; then
-							continue
-						fi
-
-						if ! is_env_make_public_var_allowed "$var_name"; then
-							continue
-						fi
-
-						if [[ ! -v question_default_sources["$var_name"] ]]; then
-							question_default_vars+=("$var_name")
-						question_default_rhs["$var_name"]="$rhs"
-						question_default_sources["$var_name"]="$file:$line_number"
-						question_default_source_lists["$var_name"]="$file:$line_number"
-						question_default_counts["$var_name"]=1
-					else
-						question_default_counts["$var_name"]=$((question_default_counts["$var_name"] + 1))
-						question_default_source_lists["$var_name"]+=$'\n'"$file:$line_number"
-					fi
-				fi
-			fi
-		done <"$file"
+		scan_assignments_in_file "$file"
 	done
 }
 
@@ -407,6 +464,8 @@ render_env_make() {
 prepare_env_make_defaults() {
 	collect_scan_files
 	scan_assignments
+	load_database_records
+	filter_question_defaults_with_database
 	warn_duplicate_defaults
 }
 
@@ -493,6 +552,7 @@ load_database_records() {
 	declare -gA database_value=()
 	declare -gA database_origin=()
 	declare -gA database_source=()
+	declare -gA parsed_makefile_set=()
 
 	database_file="$(mktemp)"
 	make_command=("$make_bin" -pnRr help)
@@ -507,6 +567,10 @@ load_database_records() {
 		database_value["$var_name"]="$value"
 		database_origin["$var_name"]="$origin"
 		database_source["$var_name"]="$source"
+
+		if [[ "$source" == *:* ]] && [[ "$origin" == "file" || "$origin" == "override" ]]; then
+			parsed_makefile_set["${source%:*}"]=1
+		fi
 	done < <(
 		awk '
 			function emit_record(current_comment, current_line, line_parts, comment_parts, origin, source, value) {
@@ -539,6 +603,9 @@ load_database_records() {
 				} else if (current_comment == "# '\''override'\'' directive") {
 					origin = "override"
 					source = "override"
+				} else if (match(current_comment, /^# '\''override'\'' directive \(from '\''([^'\'']+)'\'', line ([0-9]+)\)$/, comment_parts)) {
+					origin = "override"
+					source = comment_parts[1] ":" comment_parts[2]
 				} else if (match(current_comment, /^# makefile \(from '\''([^'\'']+)'\'', line ([0-9]+)\)$/, comment_parts)) {
 					origin = "file"
 					source = comment_parts[1] ":" comment_parts[2]
@@ -563,6 +630,70 @@ load_database_records() {
 	rm -f "$database_file"
 }
 
+filter_question_defaults_with_database() {
+	local var_name
+	local source
+	local source_file
+	local database_var_origin
+	local database_var_source
+	local -a filtered_question_default_vars=()
+	declare -A filtered_question_default_rhs=()
+	declare -A filtered_question_default_sources=()
+	declare -A filtered_question_default_source_lists=()
+	declare -A filtered_question_default_counts=()
+
+	for var_name in "${question_default_vars[@]}"; do
+		if ((question_default_counts["$var_name"] > 1)); then
+			filtered_question_default_vars+=("$var_name")
+			filtered_question_default_rhs["$var_name"]="${question_default_rhs["$var_name"]}"
+			filtered_question_default_sources["$var_name"]="${question_default_sources["$var_name"]}"
+			filtered_question_default_source_lists["$var_name"]="${question_default_source_lists["$var_name"]}"
+			filtered_question_default_counts["$var_name"]="${question_default_counts["$var_name"]}"
+			continue
+		fi
+
+		source="${question_default_sources["$var_name"]}"
+		source_file="${source%:*}"
+
+		if [[ -v parsed_makefile_set["$source_file"] ]]; then
+			if [[ ! -v database_origin["$var_name"] ]]; then
+				continue
+			fi
+
+			database_var_origin="${database_origin["$var_name"]}"
+			database_var_source="${database_source["$var_name"]}"
+			if [[ "$database_var_source" != "$source" ]] \
+				&& [[ "${database_var_source%:*}" != "$env_make_file" ]] \
+				&& [[ "$database_var_origin" != "command line" ]] \
+				&& [[ "$database_var_origin" != "environment" ]] \
+				&& [[ "$database_var_origin" != "environment override" ]]; then
+				continue
+			fi
+		fi
+
+		filtered_question_default_vars+=("$var_name")
+		filtered_question_default_rhs["$var_name"]="${question_default_rhs["$var_name"]}"
+		filtered_question_default_sources["$var_name"]="$source"
+		filtered_question_default_source_lists["$var_name"]="${question_default_source_lists["$var_name"]}"
+		filtered_question_default_counts["$var_name"]="${question_default_counts["$var_name"]}"
+	done
+
+	question_default_vars=("${filtered_question_default_vars[@]}")
+
+	unset question_default_rhs question_default_sources question_default_source_lists question_default_counts
+	declare -gA question_default_rhs=()
+	declare -gA question_default_sources=()
+	declare -gA question_default_source_lists=()
+	declare -gA question_default_counts=()
+
+	for var_name in "${question_default_vars[@]}"; do
+		question_default_rhs["$var_name"]="${filtered_question_default_rhs["$var_name"]}"
+		question_default_sources["$var_name"]="${filtered_question_default_sources["$var_name"]}"
+		question_default_source_lists["$var_name"]="${filtered_question_default_source_lists["$var_name"]}"
+		question_default_counts["$var_name"]="${filtered_question_default_counts["$var_name"]}"
+	done
+}
+
 print_debug_report() {
 	local mode="$1"
 	local var_name
@@ -572,6 +703,7 @@ print_debug_report() {
 	collect_scan_files
 	scan_assignments
 	load_database_records
+	filter_question_defaults_with_database
 
 	if [[ "$mode" == "full" ]]; then
 		vars_to_print=("${project_vars[@]}")

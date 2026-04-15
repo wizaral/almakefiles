@@ -100,6 +100,7 @@ Public targets:
   - `$(ALMKFS_DIRECTORY_PATH)/include.mk`
   - `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
   - `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
+- Discovery is make-aware: only real top-level `?=` defaults are emitted, not `?=` text captured from recipe bodies, heredocs, or `define` blocks.
 - `.env.mk` generation excludes `ALMKFS_ENV_FILE`, GNU Make system variables, and `__ALMKFS_*`.
 - Existing `.env.mk` files are validated before they are included on every invocation.
 - Hidden module files are ignored:

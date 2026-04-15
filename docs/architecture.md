@@ -121,6 +121,8 @@ Module disabling uses `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
 - `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
 - `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
 
+Discovery is make-aware: only real top-level `?=` assignments survive into `.env.mk` and `var.debug`; recipe bodies, heredocs, and `define` blocks do not contribute defaults.
+
 It excludes:
 
 - hidden Makefiles

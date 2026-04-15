@@ -33,6 +33,7 @@
 - Fails when a declared env target has no matching `.env*.example` file.
 - Enforces provenance headers on `.env*.example` files before copying.
 - Rebuilds or appends `ALMKFS_ENV_FILE` from discovered non-duplicate `?=` defaults, excluding GNU Make system variables and `__ALMKFS_*`.
+- Treats discovered defaults as real top-level Make assignments only; `?=` text inside recipes, heredocs, or `define` blocks is ignored.
 - Prints variable winner reports through `var.debug` and `var.debug-full`.
 
 ## Notes

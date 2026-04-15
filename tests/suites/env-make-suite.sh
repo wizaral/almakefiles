@@ -259,6 +259,41 @@ EOF
 	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "MAKEFLAGS = -j8"
 }
 
+test_env_make_bootstrap_ignores_question_defaults_inside_define_blocks_and_recipes() {
+	local fixture_dir
+	local debug_output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+REAL_DEFAULT ?= real-default
+
+define TEMPLATE
+BLOCK_LEAK ?= leaked-from-define
+endef
+
+fixture:
+	cat > generated.txt <<'INNER'
+	RECIPE_LEAK ?= leaked-from-heredoc
+	INNER
+	@:
+
+include almakefiles/include.mk
+EOF
+
+	run_make "$fixture_dir" help >/dev/null 2>&1
+
+	assert_file_contains "$fixture_dir/almakefiles/.env.mk" "REAL_DEFAULT = real-default"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "BLOCK_LEAK = leaked-from-define"
+	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "RECIPE_LEAK = leaked-from-heredoc"
+
+	debug_output="$(run_make "$fixture_dir" var.debug 2>&1)"
+
+	assert_contains "$debug_output" "REAL_DEFAULT"
+	assert_not_contains "$debug_output" "BLOCK_LEAK"
+	assert_not_contains "$debug_output" "RECIPE_LEAK"
+}
+
 test_env_make_bootstrap_reads_root_makefile_symlink() {
 	local fixture_dir
 
@@ -713,6 +748,7 @@ run_env_make_suite() {
 	test_env_make_accepts_supported_assignment_forms_and_comments
 	test_env_make_rejects_invalid_directives_and_names
 	test_env_make_bootstrap_skips_internal_and_system_question_defaults
+	test_env_make_bootstrap_ignores_question_defaults_inside_define_blocks_and_recipes
 	test_env_make_bootstrap_reads_root_makefile_symlink
 	test_env_make_bootstrap_reads_root_gnumakefile
 	test_env_sync_env_make_appends_only_missing_defaults
