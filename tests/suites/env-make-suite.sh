@@ -110,6 +110,38 @@ EOF
 	assert_file_not_contains "$fixture_dir/almakefiles/.env.mk" "FIRST_VAR = one"
 }
 
+test_env_sync_env_make_normalizes_missing_trailing_newline_and_preserves_mode() {
+	local fixture_dir
+	local output
+	local mode
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/project.mk" <<'EOF'
+FIRST_VAR ?= one
+EOF
+
+	bootstrap_env_make "$fixture_dir"
+
+	printf '%s\n%s' \
+		'FIRST_VAR = custom' \
+		'# user-owned note' >"$fixture_dir/almakefiles/.env.mk"
+	chmod 640 "$fixture_dir/almakefiles/.env.mk"
+
+	cat >"$fixture_dir/project-extra.mk" <<'EOF'
+SECOND_VAR ?= two
+EOF
+
+	output="$(run_make "$fixture_dir" env.sync-env.mk 2>&1)"
+	mode="$(stat -c '%a' "$fixture_dir/almakefiles/.env.mk")"
+
+	assert_line_count "$fixture_dir/almakefiles/.env.mk" "FIRST_VAR = custom" 1
+	assert_line_count "$fixture_dir/almakefiles/.env.mk" "# user-owned note" 1
+	assert_line_count "$fixture_dir/almakefiles/.env.mk" "SECOND_VAR = two" 1
+	assert_equals "$mode" "640" "synced env make mode"
+	assert_contains "$output" "Appended SECOND_VAR to almakefiles/.env.mk"
+}
+
 test_env_reinit_env_make_rebuilds_from_example_and_defaults() {
 	local fixture_dir
 	local env_make_contents
@@ -752,6 +784,7 @@ run_env_make_suite() {
 	test_env_make_bootstrap_reads_root_makefile_symlink
 	test_env_make_bootstrap_reads_root_gnumakefile
 	test_env_sync_env_make_appends_only_missing_defaults
+	test_env_sync_env_make_normalizes_missing_trailing_newline_and_preserves_mode
 	test_env_reinit_env_make_rebuilds_from_example_and_defaults
 	test_debug_full_excludes_hidden_local_make_files
 	test_debug_targets_show_effective_winners

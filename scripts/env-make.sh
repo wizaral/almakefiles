@@ -461,6 +461,18 @@ render_env_make() {
 	done
 }
 
+env_make_file_ends_with_newline() {
+	local path="$1"
+	local trailing_newline_lines
+
+	if [[ ! -s "$path" ]]; then
+		return 0
+	fi
+
+	trailing_newline_lines="$(tail -c 1 "$path" | wc -l)"
+	[[ "$trailing_newline_lines" -eq 1 ]]
+}
+
 prepare_env_make_defaults() {
 	collect_scan_files
 	scan_assignments
@@ -512,6 +524,7 @@ reinit_env_make() {
 sync_env_make() {
 	local var_name
 	local appended=0
+	local -a missing_default_vars=()
 
 	prepare_env_make_defaults
 	validate_env_make_file "$env_make_file"
@@ -531,14 +544,26 @@ sync_env_make() {
 			continue
 		fi
 
-		printf '%s = %s\n' "$var_name" "${question_default_rhs["$var_name"]}" >>"$env_make_file"
+		missing_default_vars+=("$var_name")
 		printf 'Appended %s to %s\n' "$var_name" "$env_make_file"
 		appended=1
 	done
 
 	if [[ "$appended" -eq 0 ]]; then
 		printf 'No new defaults to append to %s\n' "$env_make_file"
+		return 0
 	fi
+
+	{
+		cat "$env_make_file"
+		if ! env_make_file_ends_with_newline "$env_make_file"; then
+			printf '\n'
+		fi
+
+		for var_name in "${missing_default_vars[@]}"; do
+			printf '%s = %s\n' "$var_name" "${question_default_rhs["$var_name"]}"
+		done
+	} | write_file_atomic "$env_make_file" "$env_make_file"
 }
 
 load_database_records() {
