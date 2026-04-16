@@ -1,97 +1,35 @@
 # Architecture
 
-## Entrypoint
+This document explains how `almakefiles` works internally.
+For public guarantees and supported environments, use [`contracts.md`](contracts.md).
 
-The consumer project always includes a literal path to `include.mk`.
-No public variable participates in the very first include.
+## Overview
 
-That rule prevents a split-brain configuration where the user-provided variable and the actually loaded path diverge.
+A normal top-level load has three layers:
 
-`include.mk` guards itself as well:
+1. `include.mk` resolves and guards the drop-in entrypoint.
+2. `mk/common.mk` derives shared state, discovers modules, and bootstraps `ALMKFS_ENV_FILE`.
+3. Optional modules load and may register post-include hooks to materialize generated targets after env bootstrap.
 
-- the same canonical path may be loaded more than once
-- a different canonical `include.mk` path in the same run is an immediate error
+## Entrypoint Resolution
+
+The consumer project includes a literal path to `include.mk`.
+`include.mk` resolves its sibling `mk/common.mk` from the actual loaded path and rejects conflicting canonical entrypoints in the same run.
 
 Startup path resolution keeps the loaded `include.mk` and `mk/common.mk` paths in their literal relative form until canonicalization is needed.
 That keeps first-load behavior stable when the consumer project root contains spaces.
 
-## Canonical Directory Path
+## Shared State In `mk/common.mk`
 
-`mk/common.mk` computes `ALMKFS_DIRECTORY_PATH` from the actual loaded `mk/common.mk` file.
+`mk/common.mk` is where the cross-module baseline is established:
 
-The published value is canonical:
+- canonical `ALMKFS_DIRECTORY_PATH`
+- default `ALMKFS_ENV_FILE` placement
+- raw `MAKEOVERRIDES` preserved for nested Make database reads
+- the loaded Makefile list for help generation
+- query-style classification from real Make option tokens
 
-- relative to the consumer project root when the drop-in lives inside the project
-- absolute when the drop-in lives outside the project
-
-The loaded path, not the directory name, is the source of truth.
-
-## Layout Validation
-
-`mk/common.mk` validates that the drop-in layout contains:
-
-- `include.mk`
-- `mk/common.mk`
-- `scripts/env-init.sh`
-- `scripts/env-make.sh`
-- `scripts/help.sh`
-
-The module fails early if the loaded tree is incomplete.
-
-## Local Make Config Placement
-
-`ALMKFS_ENV_FILE` is the public override for the generated Make-local config file.
-
-Default placement:
-
-- inside-project drop-in: `$(ALMKFS_DIRECTORY_PATH)/.env.mk`
-- outside-project drop-in: `.env.mk` in the consumer project root
-
-This keeps shared external drop-ins from also becoming shared local state.
-
-## `.env.mk` Contract
-
-`ALMKFS_ENV_FILE` is a validated Make-local config file.
-
-Allowed lines:
-
-- blank lines
-- `# ...` comments
-- `NAME = value`
-- `NAME := value`
-- `NAME ::= value`
-- `NAME += value`
-
-Allowed variable names:
-
-- public `ALMKFS_*`
-- consumer project variables
-
-Forbidden content:
-
-- GNU Make system variables
-- `__ALMKFS_*`
-- `?=` and `!=`
-- directives such as `override`, `export`, `private`, `undefine`
-- blocks and conditionals such as `define`, `endef`, `ifeq`, `ifneq`, `ifdef`, `ifndef`, `else`, `endif`
-- include directives
-- rules and targets
-
-Invalid `.env.mk` content fails the invocation before the file is included.
-
-## Startup Flow
-
-Normal top-level runs follow two phases:
-
-1. `mk/common.mk` ensures `ALMKFS_ENV_FILE` exists, validates it when present, and includes it early.
-2. `mk/env.mk` optionally initializes regular `.env*` files from matching `.env*.example` files.
-
-Declared env targets require matching `.env*.example` files.
-Normal top-level runs warn on invalid source example provenance without rewriting tracked `.env*.example` files.
-Source example provenance is repaired in place only by the explicit `env.fix-example-provenance` maintenance target.
-
-Recursive and query-style runs must not create files.
-Query detection must be option-aware: non-query `MAKEFLAGS` entries such as `-Onone` or `-I dir` must not disable bootstrap just because their arguments contain `n`, `p`, or `q`.
+That query classification runs before file-writing bootstrap paths so query-style invocations do not create or rewrite local files.
 
 ## Module Discovery
 
@@ -108,54 +46,48 @@ Ignored files:
 - `mk/.*.makefile`
 - `mk/common.mk`
 
-Module disabling uses `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
+`mk/common.mk` computes the active module set after applying `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
 
-## `.env.mk` Default Scanning
+## `ALMKFS_ENV_FILE` Lifecycle
+
+`mk/common.mk` owns the early `.env.mk` path:
+
+- choose the default file path
+- bootstrap the file when a normal top-level run needs it
+- validate an existing file before including it
+- stop the invocation on invalid content
+
+The actual file scanning and rebuild logic lives in `scripts/env-make.sh`, but the timing of bootstrap and early include belongs to `mk/common.mk`.
+
+## Default Scanning Pipeline
 
 `scripts/env-make.sh` scans `?=` defaults from:
 
-- consumer root `makefile`
-- consumer root `Makefile`
-- consumer root `GNUmakefile`
-- consumer root `*.mk`
-- consumer root `*.makefile`
+- consumer-root `makefile`, `Makefile`, `GNUmakefile`
+- consumer-root `*.mk` and `*.makefile`
 - `$(ALMKFS_DIRECTORY_PATH)/include.mk`
 - `$(ALMKFS_DIRECTORY_PATH)/mk/*.mk`
 - `$(ALMKFS_DIRECTORY_PATH)/mk/*.makefile`
 
-Discovery is make-aware: only real top-level `?=` assignments survive into `.env.mk` and `var.debug`; recipe bodies, heredocs, and `define` blocks do not contribute defaults.
+The scan is make-aware rather than regex-only:
 
-It excludes:
+- only real top-level `?=` assignments survive into `.env.mk` and `var.debug`
+- hidden Makefiles and disabled module files are excluded
+- duplicate defaults are reported and skipped
 
-- hidden Makefiles
-- disabled module files
-- the public `ALMKFS_ENV_FILE` assignment itself
-- GNU Make system variables
-- `__ALMKFS_*`
+## Help Pipeline
 
-Duplicate `?=` defaults are reported and skipped.
-
-## Help Generation
-
-`scripts/help.sh` builds `help` from two sources:
+`scripts/help.sh` builds the final `help` output from two sources:
 
 - active targets from `make -pnRr help`
-- `##` declarations in the loaded Makefiles
+- `##` declarations from the loaded Makefiles
 
-Targets appear only when both are true:
+Only targets that exist in the active Make database are rendered.
+After matching is complete, the final rows are sorted once globally with `LC_ALL=C`.
 
-- the declaration exists
-- the target is active in the current Make database
+## Late Generated Targets
 
-This keeps `help` aligned with module disabling and generated target families.
-Compose service targets are generated after module includes, so `help` renders concrete `compose.sh-<service>` and `compose.exec-<service>` entries instead of only fallback pattern rules.
+Some targets cannot be materialized correctly until the rest of the startup flow has already run.
+For that case, `mk/common.mk` exposes post-include hooks.
 
-## Naming Policy
-
-- Public project-owned Make variables use `ALMKFS_`.
-- Private project-owned Make variables use `__ALMKFS_`.
-- `ALMKFS_* ?=` declares a supported configurable default.
-- `override ALMKFS_*` declares a computed public value.
-- `override __ALMKFS_*` declares private internal state.
-- `ALMKFS_DISABLE_MODULE_<MODULE_NAME>` is public and disables a module only on exact `1`.
-- Consumer project variables are not renamed or wrapped by almakefiles.
+The Docker Compose module uses those hooks to generate concrete `compose.sh-<service>` and `compose.exec-<service>` targets after env bootstrap and module loading, so direct first-run invocation works without hard-coding service names in advance.

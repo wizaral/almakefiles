@@ -335,6 +335,37 @@ EOF
 	assert_contains "$output" "git.clean"
 }
 
+test_help_output_is_sorted_globally_across_all_rendered_targets() {
+	local fixture_dir
+	local output
+	local actual_targets
+	local sorted_targets
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/makefile" <<'EOF'
+include almakefiles/include.mk
+
+zzz.target: ## Z last target
+	@true
+
+aaa.target: ## A first target
+	@true
+
+mmm.target: ## M middle target
+	@true
+EOF
+
+	output="$(run_make "$fixture_dir" ALMKFS_NO_AUTO_ENV_INIT=1 help 2>&1)"
+	actual_targets="$(
+		printf '%s\n' "$output" |
+		awk '/[^[:space:]][[:space:]]{2,}/ { line = $0; sub(/[[:space:]]{2,}.*/, "", line); print line }'
+	)"
+	sorted_targets="$(printf '%s\n' "$actual_targets" | LC_ALL=C sort)"
+
+	assert_equals "$actual_targets" "$sorted_targets" "globally sorted help targets"
+}
+
 test_new_module_files_are_auto_discovered_from_mk_directory() {
 	local fixture_dir
 	local output
@@ -444,6 +475,7 @@ run_system_suite() {
 	test_compose_generated_service_targets_work_on_first_run_and_validate_service_at_runtime
 	test_help_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers
 	test_help_bootstraps_when_project_path_contains_spaces
+	test_help_output_is_sorted_globally_across_all_rendered_targets
 	test_new_module_files_are_auto_discovered_from_mk_directory
 	test_help_excludes_disabled_module_targets_via_include_entrypoint
 	test_help_excludes_disabled_module_targets_when_modules_are_included_directly

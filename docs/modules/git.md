@@ -1,5 +1,7 @@
 # Git Module
 
+This module owns the `git clean` convenience targets and their exclusion defaults.
+
 ## Public Variables
 
 - `ALMKFS_GIT_CLEAN_EXCLUDES_CSV`

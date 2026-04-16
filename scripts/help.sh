@@ -14,6 +14,7 @@ declare -a help_files=()
 declare -a help_patterns=()
 declare -a help_descriptions=()
 declare -a pattern_placeholders=()
+declare -a rendered_help_entries=()
 
 declare -A active_target_set=()
 declare -A printed_targets=()
@@ -322,6 +323,35 @@ render_help_description() {
 	printf '%s' "$description"
 }
 
+append_rendered_help_entry() {
+	local target="$1"
+	local description="$2"
+
+	if [[ -v printed_targets["$target"] ]]; then
+		return 0
+	fi
+
+	rendered_help_entries+=("$target"$'\t'"$description")
+	printed_targets["$target"]=1
+}
+
+print_rendered_help_entries() {
+	local entry
+	local target
+	local description
+	local -a sorted_entries=()
+
+	if ((${#rendered_help_entries[@]} > 0)); then
+		mapfile -t sorted_entries < <(printf '%s\n' "${rendered_help_entries[@]}" | LC_ALL=C sort)
+	fi
+
+	for entry in "${sorted_entries[@]}"; do
+		target="${entry%%$'\t'*}"
+		description="${entry#*$'\t'}"
+		printf '%-36s %s\n' "$target" "$description"
+	done
+}
+
 emit_help() {
 	local index
 	local pattern
@@ -339,17 +369,13 @@ emit_help() {
 		description="${help_descriptions[$index]}"
 
 		if [[ "$pattern" == *'%'* && "$pattern" != *'$'* ]]; then
-			if [[ ! -v printed_targets["$pattern"] ]]; then
-				printf '%-36s %s\n' "$pattern" "$description"
-				printed_targets["$pattern"]=1
-			fi
+			append_rendered_help_entry "$pattern" "$description"
 			continue
 		fi
 
 		if [[ "$pattern" != *'$'* ]]; then
-			if [[ -v active_target_set["$pattern"] && ! -v printed_targets["$pattern"] ]]; then
-				printf '%-36s %s\n' "$pattern" "$description"
-				printed_targets["$pattern"]=1
+			if [[ -v active_target_set["$pattern"] ]]; then
+				append_rendered_help_entry "$pattern" "$description"
 			fi
 			continue
 		fi
@@ -362,11 +388,12 @@ emit_help() {
 
 			if [[ "$target" =~ $target_regex ]]; then
 				rendered_description="$(render_help_description "$description" "${BASH_REMATCH[@]:1}")"
-				printf '%-36s %s\n' "$target" "$rendered_description"
-				printed_targets["$target"]=1
+				append_rendered_help_entry "$target" "$rendered_description"
 			fi
 		done
 	done
+
+	print_rendered_help_entries
 }
 
 main() {

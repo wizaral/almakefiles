@@ -1,5 +1,7 @@
 # Docker Compose Module
 
+This module owns compose defaults and compose-related target families.
+
 ## Public Variables
 
 - `ALMKFS_DOCKER_COMPOSE`
@@ -15,8 +17,6 @@
 
 ## Public Targets
 
-### Static
-
 - `compose.ensure-tools`
 - `compose.config`
 - `compose.build`
@@ -26,19 +26,15 @@
 - `compose.logs`
 - `compose.ps`
 - `compose.restart`
-
-### Generated
-
 - `compose.sh-<service>`
 - `compose.exec-<service>`
 
 ## Behavior
 
-- Generates concrete `compose.sh-<service>` targets for interactive shells in running service containers.
-- Generates concrete `compose.exec-<service>` targets for arbitrary command execution through `CMD='...'`.
-- Generates concrete compose service targets after module includes, so first-run direct invocation works after regular env bootstrap.
-- Validates service names at runtime from `config --services` and fails with a runtime error for unknown services.
-- Keeps internal pattern fallback rules for direct runtime validation when service discovery is temporarily unavailable.
-- Prints generated compose service targets in `help`.
 - Prefers `docker compose` as the default backend and falls back to `docker-compose` when the plugin command is unavailable.
 - Uses the configured env-file and compose-file lists for every compose command.
+- Generates concrete `compose.sh-<service>` and `compose.exec-<service>` targets after module includes, so direct first-run invocation works after env bootstrap.
+- `compose.sh-<service>` opens `sh` in the running service container.
+- `compose.exec-<service>` requires `CMD='...'` and runs that command through `sh -lc` in the running service container.
+- Validates service names at runtime from `config --services` and fails for unknown services.
+- Prints generated compose service targets in `help`.

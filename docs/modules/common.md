@@ -1,9 +1,11 @@
 # Common Module
 
+This module owns shared startup state and helpers used by the rest of the drop-in.
+
 ## Public Variables
 
 - `ALMKFS_DIRECTORY_PATH`
-  - computed automatically from the loaded drop-in path
+  - computed from the actual loaded drop-in path
 - `ALMKFS_ENV_FILE`
   - configurable default for the generated Make-local config file
 - `ALMKFS_MAKE_BIN`
@@ -15,18 +17,9 @@
 - `ALMKFS_SCAN_INCLUDE_GLOBS_CSV`
 - `ALMKFS_SCAN_EXCLUDE_GLOBS_CSV`
 
-## Public Module Switches
-
-- `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`
-
 ## Public Targets
 
-### Static
-
 - `help`
-
-### Generated
-
 - `common.ensure-<tool>`
 
 ## Behavior
@@ -35,14 +28,13 @@
 - Detects and validates the active drop-in directory.
 - Guards `include.mk` and rejects conflicting canonical entrypoints.
 - Computes the default location of `ALMKFS_ENV_FILE`.
-- Discovers active optional module files.
 - Bootstraps and includes `ALMKFS_ENV_FILE` early on normal top-level runs.
 - Classifies query-style runs from real Make option tokens instead of substring matches inside unrelated `MAKEFLAGS` arguments.
-- Passes the active Makefile list to the help generator.
-- Preserves outer command-line variable winners, including valid GNU Make names that are not shell identifiers, for nested debug/help database reads.
-- Keeps startup path resolution stable when the consumer project root contains spaces.
+- Discovers optional module files and applies module disable switches before loading them.
+- Preserves raw command-line variable winners and the loaded Makefile list for nested help and debug database reads.
+- Runs post-include hooks so modules can materialize generated targets after env bootstrap.
 
 ## Notes
 
-- `ALMKFS_ENV_FILE` is special and is excluded from normal `.env*` handling.
-- Query-style runs must not create `ALMKFS_ENV_FILE`.
+- `ALMKFS_ENV_FILE` is excluded from regular `.env*` handling.
+- Module switch naming is documented in [`../reference.md`](../reference.md).
