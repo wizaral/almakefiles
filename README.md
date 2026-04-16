@@ -44,8 +44,8 @@ make -f path/to/entrypoint help
 
 ## Read Next
 
-- [`docs/getting-started.md`](docs/getting-started.md) for installation patterns and the first run
-- [`docs/contracts.md`](docs/contracts.md) for public guarantees and runtime support
-- [`docs/reference.md`](docs/reference.md) for the public variables and target families
-- [`docs/architecture.md`](docs/architecture.md) for the internal startup flow
-- [`docs/modules/common.md`](docs/modules/common.md), [`env.md`](docs/modules/env.md), [`docker-compose.md`](docs/modules/docker-compose.md), and [`git.md`](docs/modules/git.md) for module-specific behavior
+- [`getting-started.md`](docs/getting-started.md) for installation patterns and the first run
+- [`contracts.md`](docs/contracts.md) for public guarantees and runtime support
+- [`reference.md`](docs/reference.md) for the public variables and target families
+- [`architecture.md`](docs/architecture.md) for the internal startup flow
+- [`common.md`](docs/modules/common.md), [`env.md`](docs/modules/env.md), [`docker-compose.md`](docs/modules/docker-compose.md), and [`git.md`](docs/modules/git.md) for module-specific behavior
