@@ -78,7 +78,9 @@ The goal is stable mechanics, not backward compatibility.
 ### `mk/docker-compose.mk`
 
 - Owns compose-related defaults and targets.
-- Generates `compose.exec-<service>` targets from discovered services.
+- Generates concrete `compose.sh-<service>` and `compose.exec-<service>` targets from discovered services after module includes.
+- Keeps pattern fallback rules for runtime validation when service discovery is temporarily unavailable.
+- Validates compose service names at runtime.
 
 ### `mk/git.mk`
 

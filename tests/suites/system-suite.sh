@@ -99,7 +99,89 @@ test_git_clean_preserves_custom_env_make_file() {
 	assert_not_contains "$output" "Removing .env.custom"
 }
 
-test_compose_exec_targets_are_generated_from_discovered_services() {
+test_git_clean_preserves_regular_env_files_by_default() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	(
+		cd "$fixture_dir" || exit 1
+		git init -q
+		git config user.email a@b.c
+		git config user.name t
+		git add . >/dev/null
+		git commit -qm init
+	)
+
+	cat >"$fixture_dir/.env.runtime.example" <<'EOF'
+# this file created from .env.runtime.example
+RUNTIME_ENV=1
+EOF
+
+	cat >"$fixture_dir/.env.local" <<'EOF'
+LOCAL_ENV=1
+EOF
+
+	run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.custom ALMKFS_ENV_COMPOSE_FILES_CSV=.env,.env.runtime help >/dev/null 2>&1
+
+	cat >"$fixture_dir/tmp.log" <<'EOF'
+temporary output
+EOF
+
+	output="$(run_make "$fixture_dir" ALMKFS_ENV_FILE=.env.custom ALMKFS_ENV_COMPOSE_FILES_CSV=.env,.env.runtime git.clean 2>&1)"
+
+	assert_file_exists "$fixture_dir/.env.custom"
+	assert_file_exists "$fixture_dir/.env"
+	assert_file_exists "$fixture_dir/.env.runtime"
+	assert_file_exists "$fixture_dir/.env.local"
+	assert_file_not_exists "$fixture_dir/tmp.log"
+	assert_contains "$output" "Removing tmp.log"
+}
+
+test_compose_prefers_docker_compose_plugin_when_both_backends_are_available() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	write_compose_stub "$fixture_dir"
+
+	cat >"$fixture_dir/compose.yaml" <<'EOF'
+services:
+  api:
+    image: example/api
+EOF
+
+	output="$(run_make "$fixture_dir" var.debug-full 2>&1)"
+
+	assert_contains "$output" "ALMKFS_DOCKER_COMPOSE"
+	assert_contains "$output" "  value: docker compose"
+}
+
+test_compose_falls_back_to_legacy_binary_when_plugin_is_unavailable() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	write_compose_stub "$fixture_dir"
+
+	cat >"$fixture_dir/compose.yaml" <<'EOF'
+services:
+  api:
+    image: example/api
+EOF
+
+	output="$(
+		FAKE_DOCKER_COMPOSE_BACKEND=legacy-only run_make "$fixture_dir" var.debug-full 2>&1
+	)"
+
+	assert_contains "$output" "ALMKFS_DOCKER_COMPOSE"
+	assert_contains "$output" "  value: docker-compose"
+}
+
+test_compose_service_targets_are_generated_from_discovered_services() {
 	local fixture_dir
 	local database
 
@@ -115,17 +197,15 @@ services:
     image: example/worker
 EOF
 
-	cat >"$fixture_dir/.env" <<'EOF'
-COMPOSE_PROJECT_NAME=test
-EOF
-
 	database="$(run_make "$fixture_dir" -pnRr help)"
 
+	assert_contains "$database" "compose.sh-api: compose.ensure-tools"
+	assert_contains "$database" "compose.sh-worker: compose.ensure-tools"
 	assert_contains "$database" "compose.exec-api: compose.ensure-tools"
 	assert_contains "$database" "compose.exec-worker: compose.ensure-tools"
 }
 
-test_compose_exec_targets_are_skipped_when_service_discovery_fails() {
+test_compose_pattern_targets_remain_available_when_service_discovery_fails() {
 	local fixture_dir
 	local database
 
@@ -133,25 +213,15 @@ test_compose_exec_targets_are_skipped_when_service_discovery_fails() {
 
 	write_compose_stub "$fixture_dir"
 
-	cat >"$fixture_dir/compose.yaml" <<'EOF'
-services:
-  api:
-    image: example/api
-EOF
-
-	cat >"$fixture_dir/.env" <<'EOF'
-COMPOSE_PROJECT_NAME=test
-EOF
-
 	database="$(
 		FAKE_DOCKER_COMPOSE_MODE=fail run_make "$fixture_dir" -pnRr help
 	)"
 
-	assert_contains "$database" "compose.config: compose.ensure-tools"
-	assert_not_contains "$database" "compose.exec-api: compose.ensure-tools"
+	assert_contains "$database" "compose.sh-%: compose.ensure-tools"
+	assert_contains "$database" "compose.exec-%: compose.ensure-tools"
 }
 
-test_help_lists_generated_targets_from_active_modules() {
+test_help_lists_generated_compose_service_targets_from_active_modules() {
 	local fixture_dir
 	local output
 
@@ -167,14 +237,66 @@ services:
     image: example/worker
 EOF
 
-	cat >"$fixture_dir/.env" <<'EOF'
-COMPOSE_PROJECT_NAME=test
-EOF
-
 	output="$(run_make "$fixture_dir" help 2>&1)"
 
+	assert_contains "$output" "compose.sh-api"
+	assert_contains "$output" "compose.sh-worker"
 	assert_contains "$output" "compose.exec-api"
 	assert_contains "$output" "compose.exec-worker"
+	assert_not_contains "$output" "compose.sh-%"
+	assert_not_contains "$output" "compose.exec-%"
+}
+
+test_compose_generated_service_targets_work_on_first_run_and_validate_service_at_runtime() {
+	local fixture_dir
+	local output
+	local missing_output
+	local status
+
+	eval "$(setup_fixture fixture_dir)"
+
+	write_compose_stub "$fixture_dir"
+
+	cat >"$fixture_dir/compose.yaml" <<'EOF'
+services:
+  api:
+    image: example/api
+EOF
+
+	output="$(
+		FAKE_DOCKER_COMPOSE_SERVICES='api\n' run_make "$fixture_dir" compose.sh-api 2>&1
+	)"
+
+	assert_file_exists "$fixture_dir/almakefiles/.env.mk"
+	assert_file_exists "$fixture_dir/.env"
+	assert_contains "$output" "shell service=api"
+
+	output="$(
+		FAKE_DOCKER_COMPOSE_SERVICES='api\n' run_make "$fixture_dir" "CMD=printf hi" compose.exec-api 2>&1
+	)"
+
+	assert_contains "$output" "exec service=api"
+	assert_contains "$output" "printf hi"
+
+	set +e
+	missing_output="$(
+		FAKE_DOCKER_COMPOSE_SERVICES='api\n' run_make "$fixture_dir" compose.sh-worker 2>&1
+	)"
+	status=$?
+	set -e
+
+	assert_nonzero_exit "$status" "compose.sh-worker exit status"
+	assert_contains "$missing_output" "Unknown compose service: worker"
+
+	set +e
+	missing_output="$(
+		FAKE_DOCKER_COMPOSE_SERVICES='api\n' run_make "$fixture_dir" compose.exec-api 2>&1
+	)"
+	status=$?
+	set -e
+
+	assert_nonzero_exit "$status" "compose.exec-api without CMD exit status"
+	assert_contains "$missing_output" "CMD is required"
 }
 
 test_help_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers() {
@@ -313,9 +435,13 @@ run_system_suite() {
 	test_runtime_layout_contains_expected_paths
 	test_test_runner_uses_split_suites
 	test_git_clean_preserves_custom_env_make_file
-	test_compose_exec_targets_are_generated_from_discovered_services
-	test_compose_exec_targets_are_skipped_when_service_discovery_fails
-	test_help_lists_generated_targets_from_active_modules
+	test_git_clean_preserves_regular_env_files_by_default
+	test_compose_prefers_docker_compose_plugin_when_both_backends_are_available
+	test_compose_falls_back_to_legacy_binary_when_plugin_is_unavailable
+	test_compose_service_targets_are_generated_from_discovered_services
+	test_compose_pattern_targets_remain_available_when_service_discovery_fails
+	test_help_lists_generated_compose_service_targets_from_active_modules
+	test_compose_generated_service_targets_work_on_first_run_and_validate_service_at_runtime
 	test_help_accepts_gnu_make_override_names_that_are_invalid_shell_identifiers
 	test_help_bootstraps_when_project_path_contains_spaces
 	test_new_module_files_are_auto_discovered_from_mk_directory

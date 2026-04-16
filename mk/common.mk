@@ -67,6 +67,11 @@ override define almkfs-disabled-module-files
 $(strip $(foreach module,$1,$(if $(filter 1,$($(call almkfs-module-disable-var,$(module)))),$(module),)))
 endef
 
+# 1 - whitespace separated hook names
+override define almkfs-run-post-include-hooks
+$(foreach hook,$1,$(call $(hook)))
+endef
+
 # 1 - command to check, 2 - tool name, 3 - message
 override define almkfs-require-base
 $1 || (echo "$2 is required$3" && exit 1)
@@ -152,6 +157,7 @@ override __ALMKFS_RAW_MAKEOVERRIDES := $(MAKEOVERRIDES)
 override __ALMKFS_MK_CONTENT := $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/*.mk) $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/*.makefile)
 override __ALMKFS_HIDDEN_MODULE_FILES := $(strip $(ALMKFS_DIRECTORY_PATH)/mk/.mk $(ALMKFS_DIRECTORY_PATH)/mk/.makefile $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/.*.mk) $(wildcard $(ALMKFS_DIRECTORY_PATH)/mk/.*.makefile))
 override __ALMKFS_MODULE_FILES := $(sort $(filter-out $(__ALMKFS_HIDDEN_MODULE_FILES) $(ALMKFS_DIRECTORY_PATH)/mk/common.mk,$(__ALMKFS_MK_CONTENT)))
+override __ALMKFS_POST_INCLUDE_HOOKS :=
 
 override __ALMKFS_SCAN_EXCLUDE_MAKEFILES_CSV = $(call almkfs-join-comma,$(call almkfs-disabled-module-files,$(__ALMKFS_MODULE_FILES)))
 override __ALMKFS_HELP_FILE_LIST_CSV = $(call almkfs-join-comma,$(MAKEFILE_LIST))

@@ -7,7 +7,7 @@ $(eval $(call almkfs-target-require,git,))
 
 ###
 
-ALMKFS_GIT_CLEAN_EXCLUDES_CSV ?= $(ALMKFS_ENV_FILE)
+ALMKFS_GIT_CLEAN_EXCLUDES_CSV ?= $(call almkfs-join-comma,$(sort $(ALMKFS_ENV_FILE) $(__ALMKFS_ALL_ENV_FILES)))
 ALMKFS_GIT_CLEAN_FLAGS ?= -f -d -x
 override __ALMKFS_GIT_CLEAN_EXCLUDES_ARGS := $(call almkfs-split-comma,$(ALMKFS_GIT_CLEAN_EXCLUDES_CSV),-e ,)
 

@@ -148,6 +148,7 @@ Targets appear only when both are true:
 - the target is active in the current Make database
 
 This keeps `help` aligned with module disabling and generated target families.
+Compose service targets are generated after module includes, so `help` renders concrete `compose.sh-<service>` and `compose.exec-<service>` entries instead of only fallback pattern rules.
 
 ## Naming Policy
 

@@ -16,6 +16,6 @@
 
 ## Behavior
 
-- Defaults `ALMKFS_GIT_CLEAN_EXCLUDES_CSV` to `$(ALMKFS_ENV_FILE)`.
+- Defaults `ALMKFS_GIT_CLEAN_EXCLUDES_CSV` to `$(ALMKFS_ENV_FILE)` plus env-managed regular `.env*` files discovered by the env module.
 - Uses `git clean -fdx` for destructive cleanup and `git clean -fdxn` for preview mode.
 - Preserves excluded local files across cleanup runs.

@@ -11,4 +11,5 @@ override __ALMKFS_INCLUDED_ENTRYPOINT_DIRECTORY := $(__ALMKFS_CURRENT_INCLUDE_DI
 
 include $(__ALMKFS_INCLUDED_ENTRYPOINT_DIRECTORY)/mk/common.mk
 include $(call almkfs-active-module-files,$(__ALMKFS_MODULE_FILES))
+$(call almkfs-run-post-include-hooks,$(__ALMKFS_POST_INCLUDE_HOOKS))
 endif

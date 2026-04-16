@@ -197,20 +197,162 @@ fixture_cleanup_trap_command() {
 write_compose_stub() {
 	local fixture_dir="$1"
 
+	cat >"$fixture_dir/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+backend="${FAKE_DOCKER_COMPOSE_BACKEND:-both}"
+
+if [[ "${1:-}" != "compose" ]]; then
+	printf 'unexpected docker invocation: %s\n' "$*" >&2
+	exit 1
+fi
+
+shift
+
+if [[ "${1:-}" == "version" ]]; then
+	case "$backend" in
+		both|plugin-only)
+			exit 0
+			;;
+		*)
+			exit 1
+			;;
+	esac
+fi
+
+if [[ "$*" == *"config --services"* ]]; then
+	case "$backend" in
+		both|plugin-only)
+			if [[ "${FAKE_DOCKER_COMPOSE_MODE:-success}" == "fail" ]]; then
+				exit 1
+			fi
+
+			printf '%b' "${FAKE_DOCKER_COMPOSE_SERVICES:-api\nworker\n}"
+			exit 0
+			;;
+		*)
+			exit 1
+			;;
+	esac
+fi
+
+if [[ " $* " == *" exec "* ]]; then
+	args=("$@")
+	exec_index=-1
+
+	for i in "${!args[@]}"; do
+		if [[ "${args[$i]}" == "exec" ]]; then
+			exec_index="$i"
+			break
+		fi
+	done
+
+	if [[ "$exec_index" -lt 0 ]]; then
+		printf 'missing exec command in docker compose invocation: %s\n' "$*" >&2
+		exit 1
+	fi
+
+	service_index=$((exec_index + 1))
+	if [[ "${args[$service_index]:-}" == "-u" ]]; then
+		service_index=$((service_index + 2))
+	fi
+
+	service="${args[$service_index]:-}"
+	shell_name="${args[$((service_index + 1))]:-}"
+	shell_mode="${args[$((service_index + 2))]:-}"
+	command_string="${args[$((service_index + 3))]:-}"
+
+	if [[ "$shell_name" != "sh" ]]; then
+		printf 'unexpected docker compose exec shell: %s\n' "$*" >&2
+		exit 1
+	fi
+
+	if [[ "$shell_mode" == "-lc" ]]; then
+		printf 'exec service=%s cmd=%s\n' "$service" "$command_string"
+		exit 0
+	fi
+
+	printf 'shell service=%s\n' "$service"
+	exit 0
+fi
+
+printf 'unexpected docker compose invocation: %s\n' "$*" >&2
+exit 1
+EOF
+
+	chmod +x "$fixture_dir/bin/docker"
+
 	cat >"$fixture_dir/bin/docker-compose" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+backend="${FAKE_DOCKER_COMPOSE_BACKEND:-both}"
+
 if [[ "${1:-}" == "version" ]]; then
-	exit 0
+	case "$backend" in
+		both|legacy-only)
+			exit 0
+			;;
+		*)
+			exit 1
+			;;
+	esac
 fi
 
 if [[ "$*" == *"config --services"* ]]; then
-	if [[ "${FAKE_DOCKER_COMPOSE_MODE:-success}" == "fail" ]]; then
+	case "$backend" in
+		both|legacy-only)
+			if [[ "${FAKE_DOCKER_COMPOSE_MODE:-success}" == "fail" ]]; then
+				exit 1
+			fi
+
+			printf '%b' "${FAKE_DOCKER_COMPOSE_SERVICES:-api\nworker\n}"
+			exit 0
+			;;
+		*)
+			exit 1
+			;;
+	esac
+fi
+
+if [[ " $* " == *" exec "* ]]; then
+	args=("$@")
+	exec_index=-1
+
+	for i in "${!args[@]}"; do
+		if [[ "${args[$i]}" == "exec" ]]; then
+			exec_index="$i"
+			break
+		fi
+	done
+
+	if [[ "$exec_index" -lt 0 ]]; then
+		printf 'missing exec command in docker-compose invocation: %s\n' "$*" >&2
 		exit 1
 	fi
 
-	printf 'api\nworker\n'
+	service_index=$((exec_index + 1))
+	if [[ "${args[$service_index]:-}" == "-u" ]]; then
+		service_index=$((service_index + 2))
+	fi
+
+	service="${args[$service_index]:-}"
+	shell_name="${args[$((service_index + 1))]:-}"
+	shell_mode="${args[$((service_index + 2))]:-}"
+	command_string="${args[$((service_index + 3))]:-}"
+
+	if [[ "$shell_name" != "sh" ]]; then
+		printf 'unexpected docker-compose exec shell: %s\n' "$*" >&2
+		exit 1
+	fi
+
+	if [[ "$shell_mode" == "-lc" ]]; then
+		printf 'exec service=%s cmd=%s\n' "$service" "$command_string"
+		exit 0
+	fi
+
+	printf 'shell service=%s\n' "$service"
 	exit 0
 fi
 

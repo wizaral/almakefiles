@@ -338,6 +338,14 @@ emit_help() {
 		pattern="${help_patterns[$index]}"
 		description="${help_descriptions[$index]}"
 
+		if [[ "$pattern" == *'%'* && "$pattern" != *'$'* ]]; then
+			if [[ ! -v printed_targets["$pattern"] ]]; then
+				printf '%-36s %s\n' "$pattern" "$description"
+				printed_targets["$pattern"]=1
+			fi
+			continue
+		fi
+
 		if [[ "$pattern" != *'$'* ]]; then
 			if [[ -v active_target_set["$pattern"] && ! -v printed_targets["$pattern"] ]]; then
 				printf '%-36s %s\n' "$pattern" "$description"

@@ -115,6 +115,11 @@ Public targets:
 - Normal top-level runs warn on missing or invalid provenance headers in source `.env*.example` files without rewriting the tracked examples.
 - Regular `.env*` copies and `env.reinit-<file>` normalize provenance headers on the target files they write.
 - `env.fix-example-provenance` is the explicit maintenance target that repairs source `.env*.example` provenance headers in place.
+- `git.clean` preserves `ALMKFS_ENV_FILE` and env-managed regular `.env*` files by default.
+- `ALMKFS_DOCKER_COMPOSE` prefers `docker compose` and falls back to `docker-compose` when needed.
+- Generated `compose.sh-<service>` targets open interactive shells in running compose service containers.
+- Generated `compose.exec-<service>` targets run `CMD='...'` in running compose service containers.
+- Direct compose service targets are available on the first run and validate service names at runtime.
 - Query-style runs such as `-n`, `-p`, `-q`, and `-pnRr` must not create or rewrite files.
 
 ## Naming Rules
