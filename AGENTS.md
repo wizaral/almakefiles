@@ -1,9 +1,4 @@
-# AGENTS.md
-
-## Repository Role
-
-This repository develops the `almakefiles` drop-in layer and its self-hosted end-to-end tests.
-The goal is stable mechanics, not backward compatibility.
+# Repository Guidelines
 
 ## Core Invariants
 
