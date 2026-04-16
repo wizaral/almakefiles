@@ -23,7 +23,7 @@ override __ALMKFS_ALL_ENV_FILES := $(sort $(__ALMKFS_DECLARED_ENV_FILES) $(__ALM
 
 ###
 
-override __ALMKFS_AUTO_ENV_INIT_ENABLED := $(if $(or $(__ALMKFS_QUERY_MODE),$(filter 1,$(ALMKFS_NO_AUTO_ENV_INIT)),$(if $(__ALMKFS_ENV_MAKE_AVAILABLE),,1),$(if $(__ALMKFS_TOP_LEVEL),,1)),,1)
+override __ALMKFS_AUTO_ENV_INIT_ENABLED := $(if $(or $(__ALMKFS_QUERY_MODE),$(filter 1,$(ALMKFS_NO_AUTO_ENV_INIT)),$(filter env.fix-example-provenance,$(MAKECMDGOALS)),$(if $(__ALMKFS_ENV_MAKE_AVAILABLE),,1),$(if $(__ALMKFS_TOP_LEVEL),,1)),,1)
 override __ALMKFS_ENV_MAKE_SCRIPT_ARGS := ALMKFS_DIRECTORY_PATH ALMKFS_ENV_FILE ALMKFS_SCAN_INCLUDE_DIRS_CSV ALMKFS_SCAN_INCLUDE_GLOBS_CSV ALMKFS_SCAN_EXCLUDE_DIRS_CSV ALMKFS_SCAN_EXCLUDE_GLOBS_CSV __ALMKFS_RAW_MAKEOVERRIDES __ALMKFS_SCAN_EXCLUDE_MAKEFILES_CSV
 override __ALMKFS_ENV_INIT_SCRIPT_ARGS := ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV
 
@@ -42,6 +42,9 @@ env.sync-env.mk: ## Append newly discovered ?= defaults to ALMKFS_ENV_FILE
 
 env.reinit-env.mk: ## Rebuild ALMKFS_ENV_FILE from discovered defaults
 	$(call almkfs-gen-env-list,$(__ALMKFS_ENV_MAKE_SCRIPT_ARGS)) bash $(__ALMKFS_ENV_MAKE_SCRIPT) reinit
+
+env.fix-example-provenance: ## Normalize provenance headers in .env*.example files
+	$(call almkfs-gen-env-list,$(__ALMKFS_ENV_INIT_SCRIPT_ARGS)) bash $(__ALMKFS_ENV_INIT_SCRIPT) --fix-examples
 
 var.debug: ## Show effective values and winners for discovered ?= variables
 	$(call almkfs-gen-env-list,$(__ALMKFS_ENV_MAKE_SCRIPT_ARGS) ALMKFS_MAKE_BIN) bash $(__ALMKFS_ENV_MAKE_SCRIPT) debug

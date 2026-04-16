@@ -95,7 +95,8 @@ The goal is stable mechanics, not backward compatibility.
 
 ### `scripts/env-init.sh`
 
-- Enforces `.env*.example` provenance headers.
+- Warns on invalid source `.env*.example` provenance during normal top-level runs without rewriting tracked examples.
+- Repairs source `.env*.example` provenance only through the explicit maintenance target.
 - Initializes or reinitializes regular `.env*` targets from examples.
 
 ### `scripts/help.sh`

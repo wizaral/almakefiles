@@ -239,9 +239,11 @@ EOF
 	assert_contains "$output" "Created .env from .env.example"
 }
 
-test_missing_example_provenance_is_auto_added_on_normal_make() {
+test_missing_example_provenance_warns_without_rewriting_source_example_on_normal_make() {
 	local fixture_dir
 	local output
+	local before_sha
+	local after_sha
 
 	eval "$(setup_fixture fixture_dir)"
 
@@ -249,18 +251,22 @@ test_missing_example_provenance_is_auto_added_on_normal_make() {
 ROOT_ENV=1
 EOF
 
+	before_sha="$(file_sha256 "$fixture_dir/.env.example")"
 	output="$(run_make "$fixture_dir" help 2>&1)"
+	after_sha="$(file_sha256 "$fixture_dir/.env.example")"
 
-	assert_contains "$output" "Info: Added provenance header to .env.example"
-	assert_first_line_equals "$fixture_dir/.env.example" "# this file created from .env.example"
+	assert_equals "$after_sha" "$before_sha" ".env.example sha256 on normal warning-only run"
+	assert_contains "$output" "Warning: .env.example is missing a valid provenance header and normal runs do not rewrite source examples"
+	assert_first_line_equals "$fixture_dir/.env.example" "ROOT_ENV=1"
 	assert_first_line_equals "$fixture_dir/.env" "# this file created from .env.example"
-	assert_line_count "$fixture_dir/.env.example" "# this file created from .env.example" 1
 	assert_line_count "$fixture_dir/.env" "# this file created from .env.example" 1
 }
 
-test_invalid_example_provenance_is_rewritten_in_place() {
+test_invalid_example_provenance_warns_without_rewriting_source_example_on_normal_make() {
 	local fixture_dir
 	local output
+	local before_sha
+	local after_sha
 
 	eval "$(setup_fixture fixture_dir)"
 
@@ -269,13 +275,15 @@ test_invalid_example_provenance_is_rewritten_in_place() {
 ROOT_ENV=1
 EOF
 
+	before_sha="$(file_sha256 "$fixture_dir/.env.example")"
 	output="$(run_make "$fixture_dir" help 2>&1)"
+	after_sha="$(file_sha256 "$fixture_dir/.env.example")"
 
-	assert_contains "$output" "Info: Rewrote invalid provenance header in .env.example"
-	assert_first_line_equals "$fixture_dir/.env.example" "# this file created from .env.example"
+	assert_equals "$after_sha" "$before_sha" ".env.example sha256 on normal invalid-header run"
+	assert_contains "$output" "Warning: .env.example is missing a valid provenance header and normal runs do not rewrite source examples"
+	assert_first_line_equals "$fixture_dir/.env.example" "# this file created from .env.wrong.example"
 	assert_first_line_equals "$fixture_dir/.env" "# this file created from .env.example"
-	assert_line_count "$fixture_dir/.env.example" "# this file created from .env.example" 1
-	assert_file_not_contains "$fixture_dir/.env.example" ".env.wrong.example"
+	assert_file_not_contains "$fixture_dir/.env" ".env.wrong.example"
 }
 
 test_valid_example_provenance_is_left_untouched() {
@@ -295,7 +303,32 @@ test_valid_example_provenance_is_left_untouched() {
 	assert_not_contains "$output" "Info: Rewrote invalid provenance header in .env.example"
 }
 
-test_exempt_example_provenance_warns_without_rewrite() {
+test_fix_example_provenance_repairs_missing_and_invalid_headers_without_creating_targets() {
+	local fixture_dir
+	local output
+
+	eval "$(setup_fixture fixture_dir)"
+
+	cat >"$fixture_dir/.env.runtime.example" <<'EOF'
+RUNTIME_ENV=1
+EOF
+
+	cat >"$fixture_dir/.env.alpha.example" <<'EOF'
+# this file created from .env.alpha.wrong.example
+ALPHA_ENV=1
+EOF
+
+	output="$(run_make "$fixture_dir" env.fix-example-provenance 2>&1)"
+
+	assert_contains "$output" "Info: Added provenance header to .env.runtime.example"
+	assert_contains "$output" "Info: Rewrote invalid provenance header in .env.alpha.example"
+	assert_first_line_equals "$fixture_dir/.env.runtime.example" "# this file created from .env.runtime.example"
+	assert_first_line_equals "$fixture_dir/.env.alpha.example" "# this file created from .env.alpha.example"
+	assert_file_not_exists "$fixture_dir/.env.runtime"
+	assert_file_not_exists "$fixture_dir/.env.alpha"
+}
+
+test_fix_example_provenance_respects_warn_only_exemptions() {
 	local fixture_dir
 	local output
 
@@ -306,16 +339,15 @@ RUNTIME_ENV=1
 EOF
 
 	output="$(
-		run_make "$fixture_dir" ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV=./.env.runtime.example help 2>&1
+		run_make "$fixture_dir" ALMKFS_ENV_EXAMPLE_PROVENANCE_WARN_ONLY_CSV=./.env.runtime.example env.fix-example-provenance 2>&1
 	)"
 
-	assert_contains "$output" "Warning: .env.runtime.example is missing a valid provenance header and is exempt from auto-fix"
+	assert_contains "$output" "Warning: .env.runtime.example is missing a valid provenance header and is exempt from explicit fix"
 	assert_first_line_equals "$fixture_dir/.env.runtime.example" "RUNTIME_ENV=1"
-	assert_file_exists "$fixture_dir/.env.runtime"
-	assert_first_line_equals "$fixture_dir/.env.runtime" "RUNTIME_ENV=1"
+	assert_file_not_exists "$fixture_dir/.env.runtime"
 }
 
-test_single_target_resolution_requires_matching_example_after_provenance_prepass() {
+test_single_target_resolution_reports_available_examples_without_rewriting_sources() {
 	local fixture_dir
 	local output
 	local status
@@ -334,15 +366,15 @@ EOF
 	status=$?
 	set -e
 
-	assert_nonzero_exit "$status" "help without matching example after provenance prepass"
-	assert_contains "$output" "Info: Added provenance header to .env.base.example"
+	assert_nonzero_exit "$status" "help without matching example and without source rewrite"
+	assert_contains "$output" "Warning: .env.base.example is missing a valid provenance header and normal runs do not rewrite source examples"
 	assert_contains "$output" "Unable to resolve env targets: .env.runtime"
 	assert_contains "$output" "Available env examples: .env.base.example"
-	assert_first_line_equals "$fixture_dir/.env.base.example" "# this file created from .env.base.example"
+	assert_first_line_equals "$fixture_dir/.env.base.example" "BASE_ENV=1"
 	assert_file_not_exists "$fixture_dir/.env.runtime"
 }
 
-test_multiple_example_resolution_still_behaves_after_provenance_prepass() {
+test_multiple_example_resolution_normalizes_targets_without_rewriting_sources() {
 	local fixture_dir
 	local output
 
@@ -361,18 +393,20 @@ EOF
 		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime help 2>&1
 	)"
 
-	assert_contains "$output" "Info: Added provenance header to .env.runtime.example"
-	assert_contains "$output" "Info: Rewrote invalid provenance header in .env.alpha.example"
+	assert_contains "$output" "Warning: .env.runtime.example is missing a valid provenance header and normal runs do not rewrite source examples"
+	assert_contains "$output" "Warning: .env.alpha.example is missing a valid provenance header and normal runs do not rewrite source examples"
 	assert_file_exists "$fixture_dir/.env"
 	assert_file_exists "$fixture_dir/.env.runtime"
 	assert_file_exists "$fixture_dir/.env.alpha"
+	assert_first_line_equals "$fixture_dir/.env.runtime.example" "RUNTIME_ENV=1"
+	assert_first_line_equals "$fixture_dir/.env.alpha.example" "# this file created from .env.alpha.wrong.example"
 	assert_first_line_equals "$fixture_dir/.env.runtime" "# this file created from .env.runtime.example"
 	assert_file_contains "$fixture_dir/.env.runtime" "RUNTIME_ENV=1"
 	assert_first_line_equals "$fixture_dir/.env.alpha" "# this file created from .env.alpha.example"
 	assert_file_contains "$fixture_dir/.env.alpha" "ALPHA_ENV=1"
 }
 
-test_env_reinit_enforces_example_provenance_before_copying() {
+test_env_reinit_normalizes_target_provenance_without_rewriting_source_example() {
 	local fixture_dir
 	local output
 
@@ -393,9 +427,9 @@ EOF
 		run_make "$fixture_dir" ALMKFS_ENV_COMPOSE_FILES_CSV=.env.runtime env.reinit-env.runtime 2>&1
 	)"
 
-	assert_contains "$output" "Info: Rewrote invalid provenance header in .env.runtime.example"
+	assert_contains "$output" "Warning: .env.runtime.example is missing a valid provenance header and normal runs do not rewrite source examples"
 	assert_contains "$output" "Reinitialized .env.runtime from .env.runtime.example"
-	assert_first_line_equals "$fixture_dir/.env.runtime.example" "# this file created from .env.runtime.example"
+	assert_first_line_equals "$fixture_dir/.env.runtime.example" "# this file created from .env.wrong.example"
 	assert_first_line_equals "$fixture_dir/.env.runtime" "# this file created from .env.runtime.example"
 	assert_file_contains "$fixture_dir/.env.runtime" "RUNTIME_ENV=1"
 	assert_file_not_contains "$fixture_dir/.env.runtime" "OLD_RUNTIME_ENV=1"
@@ -562,16 +596,17 @@ run_env_init_suite() {
 	test_outside_project_dropin_uses_root_env_make_file
 	test_second_make_help_runs_without_recreating_env_make
 	test_first_help_with_declared_runtime_env_creates_regular_env_files
-	test_missing_example_provenance_is_auto_added_on_normal_make
-	test_invalid_example_provenance_is_rewritten_in_place
+	test_missing_example_provenance_warns_without_rewriting_source_example_on_normal_make
+	test_invalid_example_provenance_warns_without_rewriting_source_example_on_normal_make
 	test_valid_example_provenance_is_left_untouched
-	test_exempt_example_provenance_warns_without_rewrite
+	test_fix_example_provenance_repairs_missing_and_invalid_headers_without_creating_targets
+	test_fix_example_provenance_respects_warn_only_exemptions
 	test_warn_undefined_variables_does_not_disable_bootstrap_or_auto_init
-	test_single_target_resolution_requires_matching_example_after_provenance_prepass
-	test_multiple_example_resolution_still_behaves_after_provenance_prepass
+	test_single_target_resolution_reports_available_examples_without_rewriting_sources
+	test_multiple_example_resolution_normalizes_targets_without_rewriting_sources
 	test_help_lists_generated_reinit_targets
 	test_help_renders_generated_reinit_target_descriptions_with_real_file_names
-	test_env_reinit_enforces_example_provenance_before_copying
+	test_env_reinit_normalizes_target_provenance_without_rewriting_source_example
 	test_query_mode_does_not_mutate_examples_or_targets_when_example_provenance_is_invalid
 	test_dry_run_long_option_does_not_bootstrap_or_auto_init
 	test_non_query_makeflags_with_output_sync_argument_does_not_disable_bootstrap_or_auto_init

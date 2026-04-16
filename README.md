@@ -86,6 +86,7 @@ Public targets:
 - `help`
 - `env.sync-env.mk`
 - `env.reinit-env.mk`
+- `env.fix-example-provenance`
 - `env.reinit-<file>`
 - `var.debug`
 - `var.debug-full`
@@ -111,6 +112,9 @@ Public targets:
 - Disabled modules are excluded from both `help` and `.env.mk` scanning.
 - Normal top-level runs may initialize regular `.env*` files only from matching `.env*.example` files.
 - Declared env targets require matching `.env*.example` files.
+- Normal top-level runs warn on missing or invalid provenance headers in source `.env*.example` files without rewriting the tracked examples.
+- Regular `.env*` copies and `env.reinit-<file>` normalize provenance headers on the target files they write.
+- `env.fix-example-provenance` is the explicit maintenance target that repairs source `.env*.example` provenance headers in place.
 - Query-style runs such as `-n`, `-p`, `-q`, and `-pnRr` must not create or rewrite files.
 
 ## Naming Rules

@@ -12,6 +12,7 @@ declare -a used_examples=()
 declare -a remaining_examples=()
 declare -a warn_only_examples=()
 force_reinit=0
+fix_example_provenance=0
 
 # Referenced directly to keep shellcheck aware; mutations mostly happen via namerefs.
 : "${used_examples[*]-}" "${warn_only_examples[*]-}"
@@ -68,28 +69,89 @@ prepend_first_line() {
 	} | write_file_atomic "$path" "$path"
 }
 
-enforce_example_provenance() {
+expected_provenance_header() {
 	local example="$1"
-	local expected_header="# this file created from $example"
+
+	printf '# this file created from %s' "$example"
+}
+
+example_has_valid_provenance() {
+	local example="$1"
+	local first_line
+	local expected_header
+
+	expected_header="$(expected_provenance_header "$example")"
+	first_line="$(read_first_line "$example")"
+	[[ "$first_line" == "$expected_header" ]]
+}
+
+warn_invalid_example_provenance() {
+	local example="$1"
+
+	printf 'Warning: %s is missing a valid provenance header and normal runs do not rewrite source examples\n' "$example" >&2
+}
+
+fix_example_provenance_in_place() {
+	local example
+	local expected_header
 	local first_line
 
+	load_warn_only_examples
+	for example in "${all_examples[@]}"; do
+		expected_header="$(expected_provenance_header "$example")"
+		first_line="$(read_first_line "$example")"
+
+		if [[ "$first_line" == "$expected_header" ]]; then
+			continue
+		fi
+
+		if contains_item warn_only_examples "$example"; then
+			printf 'Warning: %s is missing a valid provenance header and is exempt from explicit fix\n' "$example" >&2
+			continue
+		fi
+
+		if [[ "$first_line" == '# this file created from '* ]]; then
+			replace_first_line "$example" "$expected_header"
+			printf 'Info: Rewrote invalid provenance header in %s\n' "$example"
+		else
+			prepend_first_line "$example" "$expected_header"
+			printf 'Info: Added provenance header to %s\n' "$example"
+		fi
+	done
+}
+
+copy_example_to_target() {
+	local target="$1"
+	local example="$2"
+	local expected_header
+	local first_line
+	local reference_path=""
+
+	expected_header="$(expected_provenance_header "$example")"
 	first_line="$(read_first_line "$example")"
-	if [[ "$first_line" == "$expected_header" ]]; then
-		return 0
+
+	if [[ -f "$target" ]]; then
+		reference_path="$target"
 	fi
 
-	if contains_item warn_only_examples "$example"; then
-		printf 'Warning: %s is missing a valid provenance header and is exempt from auto-fix\n' "$example" >&2
-		return 0
-	fi
+	{
+		printf '%s\n' "$expected_header"
+		if [[ "$first_line" == '# this file created from '* ]]; then
+			tail -n +2 -- "$example"
+		else
+			cat "$example"
+		fi
+	} | write_file_atomic "$target" "$reference_path"
+}
 
-	if [[ "$first_line" == '# this file created from '* ]]; then
-		replace_first_line "$example" "$expected_header"
-		printf 'Info: Rewrote invalid provenance header in %s\n' "$example"
-	else
-		prepend_first_line "$example" "$expected_header"
-		printf 'Info: Added provenance header to %s\n' "$example"
-	fi
+validate_example_provenance_prepass() {
+	local example
+
+	for example in "${all_examples[@]}"; do
+		if ! example_has_valid_provenance "$example"; then
+			warn_invalid_example_provenance "$example"
+		fi
+	done
 }
 
 copy_if_missing() {
@@ -97,10 +159,10 @@ copy_if_missing() {
 	local example="$2"
 
 	if [[ "$force_reinit" -eq 1 && -f "$target" ]]; then
-		cp "$example" "$target"
+		copy_example_to_target "$target" "$example"
 		printf 'Reinitialized %s from %s\n' "$target" "$example"
 	elif [[ ! -f "$target" ]]; then
-		cp "$example" "$target"
+		copy_example_to_target "$target" "$example"
 		printf 'Created %s from %s\n' "$target" "$example"
 	else
 		printf '%s already exists\n' "$target"
@@ -149,15 +211,6 @@ discover_examples() {
 	if mapfile -t all_examples < <(find . -maxdepth 1 -type f -name '.env*.example' -printf '%f\n' | LC_ALL=C sort -u); then
 		:
 	fi
-}
-
-enforce_example_provenance_prepass() {
-	local example
-
-	load_warn_only_examples
-	for example in "${all_examples[@]}"; do
-		enforce_example_provenance "$example"
-	done
 }
 
 resolve_existing_declared_targets() {
@@ -229,9 +282,20 @@ main() {
 		shift
 	fi
 
-	collect_declared_targets "$@"
+	if [[ "${1:-}" == "--fix-examples" ]]; then
+		fix_example_provenance=1
+		shift
+	fi
+
 	discover_examples
-	enforce_example_provenance_prepass
+
+	if [[ "$fix_example_provenance" -eq 1 ]]; then
+		fix_example_provenance_in_place
+		return 0
+	fi
+
+	collect_declared_targets "$@"
+	validate_example_provenance_prepass
 	resolve_existing_declared_targets
 	resolve_declared_targets_from_matching_examples
 	fail_on_unresolved_targets
