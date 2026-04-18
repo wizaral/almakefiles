@@ -1,108 +1,60 @@
 # Repository Guidelines
 
-## Core Invariants
+## Repository Role
 
-- The consumer project uses one literal include line: `include path/to/include.mk`.
-- `ALMKFS_DIRECTORY_PATH` is computed from the actual loaded `mk/common.mk` path.
-- Canonical path form:
-  - relative to the consumer project root when the drop-in is inside the project
-  - absolute when the drop-in is outside the project
-- Re-loading the same canonical `include.mk` path is allowed.
-- Loading a different canonical `include.mk` path in the same run must fail immediately.
-- `ALMKFS_ENV_FILE` is the only public override for the generated Make-local config file.
-- Default `ALMKFS_ENV_FILE` placement:
-  - inside-project drop-in: next to `include.mk`
-  - outside-project drop-in: consumer project root `.env.mk`
-- `.env.mk` is a validated config file, not a generic Make fragment.
-- `.env.mk` may contain only blank lines, `#` comments, and assignment operators `=`, `:=`, `::=`, `+=`.
-- `.env.mk` must not contain GNU Make system variables, `__ALMKFS_*`, directives, conditionals, includes, rules, or targets.
-- Query-style invocations must not create or rewrite `.env.mk` or regular `.env*` files.
-- `help` must list only active targets from active modules.
-- Disabled modules must disappear consistently from:
-  - parsed targets
-  - help output
-  - `.env.mk` default scanning
+- This repository is the `almakefiles` drop-in layer and its self-hosted end-to-end tests.
+- Treat `README.md` and `docs/*.md` as the product documentation surface.
 
-## Naming Rules
+## Documentation Boundaries
 
-- Public project-owned Make variables must use the `ALMKFS_` prefix.
-- Private project-owned Make variables must use the `__ALMKFS_` prefix.
-- Internal Make `define` helpers must use `almkfs-...` kebab-case names.
-- `ALMKFS_* ?=` is the only supported configurable-default form.
-- `override ALMKFS_*` is reserved for computed public values.
-- `override __ALMKFS_*` is reserved for private internal values.
-- `+=` on system-owned variables must be spelled `override +=`.
-- Internal helper state in shell scripts should stay local shell variables unless it must cross a process boundary.
-- Module disable switches use `ALMKFS_DISABLE_MODULE_<MODULE_NAME> = 1`.
+- `README.md`
+    - landing page for a first-time visitor
+- `docs/getting-started.md`
+    - onboarding and first-run expectations
+- `docs/contracts.md`
+    - public guarantees that consumer projects may rely on
+- `docs/reference.md`
+    - quick lookup for the public surface
+- `docs/architecture.md`
+    - internal startup flow and cross-module mechanics
+- `docs/modules/*.md`
+    - module-specific public behavior
+- `AGENTS.md`
+    - contributor and agent workflow guidance only
+
+Do not duplicate user-facing contracts here when the repository docs already define them.
 
 ## Source Of Truth
 
-- Canonical drop-in path detection lives in `mk/common.mk`.
-- Module loading entrypoint lives in `include.mk`.
-- `.env.mk` generation and variable debug output live in `scripts/env-make.sh`.
-- Regular `.env*` initialization from `.env*.example` lives in `scripts/env-init.sh`.
-- `help` generation lives in `scripts/help.sh`.
-- Public module contracts belong in `docs/modules/*.md`.
-- Cross-module architecture belongs in `docs/architecture.md`.
+- `include.mk`
+    - entrypoint loading order and duplicate-entrypoint protection
+- `mk/common.mk`
+    - canonical path detection, module discovery, early `.env.mk` bootstrap, shared Make helpers, post-include hooks
+- `mk/env.mk`
+    - regular `.env*` initialization and env-related public targets
+- `mk/docker-compose.mk`
+    - compose defaults and generated compose targets
+- `mk/git.mk`
+    - git clean targets and exclusion handling
+- `scripts/env-make.sh`
+    - `.env.mk` validation, rebuild, sync, and debug reports
+- `scripts/env-init.sh`
+    - regular `.env*` initialization and provenance handling
+- `scripts/help.sh`
+    - active-target filtering and final help rendering order
+- `tests/suites/*.sh`
+    - end-to-end contract coverage
 
-## File Responsibilities
+## Working Rules
 
-### `include.mk`
+- Keep product-facing rules in the repository docs instead of re-explaining them in code comments or contributor docs.
+- Update the matching module document when module behavior changes.
+- Update `docs/contracts.md` only when a real public guarantee changes.
+- Update `docs/reference.md` when the public surface changes.
+- Update `docs/architecture.md` when startup flow, discovery, scan rules, or target materialization logic change.
+- Keep `README.md` small and usable as a landing page.
 
-- Resolves its sibling `mk/common.mk` from the actual loaded include path.
-- Guards itself against duplicate loads.
-- Rejects conflicting canonical entrypoints.
-- Includes active optional modules after `common.mk`.
-
-### `mk/common.mk`
-
-- Computes canonical `ALMKFS_DIRECTORY_PATH`.
-- Validates the expected drop-in layout.
-- Sets the default `ALMKFS_ENV_FILE`.
-- Discovers optional modules from `mk/*.mk` and `mk/*.makefile`.
-- Owns early `.env.mk` bootstrap, validation, and early include.
-- Owns shared Make helpers used by multiple modules.
-- Preserves raw `MAKEOVERRIDES` for nested debug/help database reads.
-
-### `mk/env.mk`
-
-- Owns regular `.env*` initialization behavior.
-- Defines env-related public targets and debug targets.
-- Excludes `ALMKFS_ENV_FILE` from generic env file handling.
-
-### `mk/docker-compose.mk`
-
-- Owns compose-related defaults and targets.
-- Generates concrete `compose.sh-<service>` and `compose.exec-<service>` targets from discovered services after module includes.
-- Keeps pattern fallback rules for runtime validation when service discovery is temporarily unavailable.
-- Validates compose service names at runtime.
-
-### `mk/git.mk`
-
-- Owns git-clean convenience targets and exclusion handling.
-
-### `scripts/env-make.sh`
-
-- Scans the allowed Makefile set for `?=` defaults.
-- Skips duplicate defaults.
-- Rejects invalid `.env.mk` content.
-- Excludes GNU Make system variables and `__ALMKFS_*` from generated `.env.mk` defaults.
-- Builds, syncs, and rebuilds `ALMKFS_ENV_FILE`.
-- Prints debug reports from the active Make database.
-
-### `scripts/env-init.sh`
-
-- Warns on invalid source `.env*.example` provenance during normal top-level runs without rewriting tracked examples.
-- Repairs source `.env*.example` provenance only through the explicit maintenance target.
-- Initializes or reinitializes regular `.env*` targets from examples.
-
-### `scripts/help.sh`
-
-- Reads active targets from `make -pnRr help`.
-- Reads `##` declarations from loaded Makefiles.
-- Prints only targets that are actually active.
-
-## Testing
+## Verification
 
 Run after behavioral changes:
 
@@ -116,14 +68,8 @@ Run shell checks after script or test changes:
 shellcheck -x -P tests scripts/env-init.sh scripts/env-make.sh scripts/help.sh scripts/lib/common.sh tests/lib/test_helpers.sh tests/suites/env-init-suite.sh tests/suites/env-make-suite.sh tests/suites/system-suite.sh tests/test_make_templates.sh
 ```
 
-## Documentation Rules
+## Commit Messages
 
-- Update `README.md` when the consumer-facing contract changes.
-- Update `AGENTS.md` when contributor or agent workflow expectations change.
-- Update `docs/architecture.md` when path resolution, startup flow, help generation, or scan rules change.
-- Update the matching module document when its public vars, targets, or behaviors change.
-
-## Commit Rules
-
-- Commit messages must use the standard Git layout: a short `subject`, one blank line, and an optional `body`.
-- Use `subject` for the concise action summary and `body` for the reason or important context when needed.
+- Use a short `subject`.
+- Add a `body` when the reason, scope, or contract impact needs explanation.
+- Describe what the commit changes in the repository, not issue-tracker bookkeeping.
